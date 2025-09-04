@@ -37,8 +37,12 @@ class Ejercicio:
             raise ValueError("El nombre del ejercicio no puede estar vacío.")
         if self.repeticiones <= 0:
             raise ValueError("Las repeticiones deben ser mayores a 0.")
+        if self.repeticiones > 100:
+            raise ValueError("Las repeticiones no pueden ser mayores a 100.")
         if self.series <= 0:
             raise ValueError("Las series deben ser mayores a 0.")
+        if self.series > 100:
+            raise ValueError("Las series no pueden ser mayores a 100.")
         if self.sec_por_rep <= 0 or self.descanso_entre_series < 0:
             raise ValueError("Tiempos inválidos para el ejercicio.")
 
@@ -158,6 +162,8 @@ class Usuario:
             raise ValueError("El nombre del usuario no puede estar vacío.")
         if self.edad < 16:
             raise ValueError("La edad debe ser un número mayor o igual a 16 años.")
+        if self.edad > 100:
+            raise ValueError("La edad debe ser menor o igual a 100 años.")
 
     def asignar_rutina(self, rutina: Rutina):
         if any(_norm(r.nombre) == _norm(rutina.nombre) for r in self.rutinas):
@@ -200,12 +206,15 @@ class SistemaGestion:
             print("El valor no puede estar vacío.")
 
     @staticmethod
-    def _input_int(msg: str, minimo: Optional[int] = None) -> int:
+    def _input_int(msg: str, minimo: Optional[int] = None, maximo: Optional[int] = None) -> int:
         while True:
             try:
                 val = int(input(msg).strip())
                 if minimo is not None and val < minimo:
                     print(f"El valor debe ser mayor o igual a {minimo}.")
+                    continue
+                if maximo is not None and val > maximo:
+                    print(f"El valor debe ser menor o igual a {maximo}.")
                     continue
                 return val
             except ValueError:
@@ -421,14 +430,27 @@ class SistemaGestion:
                             print("El nombre de usuario no puede estar vacío.")
                             continue
                         break
+                    print("\nRutinas disponibles:")
+                    self.listar_rutinas()
                     while True:
-                        r = input("Rutina: ").strip()
+                        r = input("Rutinas (separadas por coma): ").strip()
                         if not r:
                             print("El nombre de la rutina no puede estar vacío.")
                             continue
                         break
-                    self.asignar_rutina_a_usuario(u, r)
-                    print("Rutina asignada.")
+                    nombres_rutinas = [n.strip() for n in r.split(",") if n.strip()]
+                    errores = []
+                    for nombre_rutina in nombres_rutinas:
+                        try:
+                            self.asignar_rutina_a_usuario(u, nombre_rutina)
+                        except ValueError as e:
+                            errores.append(f"{nombre_rutina}: {e}")
+                    if errores:
+                        print("Algunos errores al asignar rutinas:")
+                        for err in errores:
+                            print(f"  [Error] {err}")
+                    else:
+                        print("Rutinas asignadas.")
                 elif op == "5":
                     nombre = input("Usuario: ").strip()
                     self.mostrar_rutinas_de_usuario(nombre)
@@ -457,7 +479,7 @@ class SistemaGestion:
                         print("Ya existe un usuario con ese nombre. Intenta otro.")
                     else:
                         break
-                edad = self._input_int("Edad: ", minimo=16)
+                edad = self._input_int("Edad: ", minimo=16, maximo=100)
                 try:
                     self.agregar_usuario(nombre, edad)
                     print("Usuario agregado.")
@@ -489,7 +511,7 @@ class SistemaGestion:
                         self.idx_usuarios[_norm(usuario.nombre)] = usuario
                         print("Nombre actualizado.")
                     elif subop == "2":
-                        usuario.edad = self._input_int("Nueva edad: ", minimo=16)
+                        usuario.edad = self._input_int("Nueva edad: ", minimo=16, maximo=100)
                         print("Edad actualizada.")
                     elif subop == "3":
                         break
@@ -516,8 +538,8 @@ class SistemaGestion:
                         print("Ya existe un ejercicio con ese nombre. Intenta otro.")
                     else:
                         break
-                reps = self._input_int("Repeticiones: ", minimo=1)
-                series = self._input_int("Series: ", minimo=1)
+                reps = self._input_int("Repeticiones: ", minimo=1, maximo=100)
+                series = self._input_int("Series: ", minimo=1, maximo=100)
                 try:
                     self.crear_ejercicio(nombre, reps, series)
                 except ValueError as e:
@@ -550,11 +572,11 @@ class SistemaGestion:
                         print("Nombre actualizado.")
                     elif subop == "2":
                         ejercicio.repeticiones = self._input_int(
-                            "Nuevas repeticiones: ", minimo=1
+                            "Nuevas repeticiones: ", minimo=1, maximo=100
                         )
                         print("Repeticiones actualizadas.")
                     elif subop == "3":
-                        ejercicio.series = self._input_int("Nuevas series: ", minimo=1)
+                        ejercicio.series = self._input_int("Nuevas series: ", minimo=1, maximo=100)
                         print("Series actualizadas.")
                     elif subop == "4":
                         break
@@ -689,4 +711,7 @@ class SistemaGestion:
 
 if __name__ == "__main__":
     sistema = SistemaGestion()
-    sistema.menu()
+    try:
+        sistema.menu()
+    except KeyboardInterrupt:
+        print("\n¡Hasta luego!")
