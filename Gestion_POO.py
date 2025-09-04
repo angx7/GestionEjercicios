@@ -171,6 +171,7 @@ class Usuario:
     def _validar(self):
         if not self.nombre:
             raise ValueError("El nombre del usuario no puede estar vacío.")
+        # Edad mínima 16
         if self.edad is None or self.edad < 16:
             raise ValueError("La edad debe ser un número mayor o igual a 16 años.")
 
@@ -193,7 +194,7 @@ class SistemaGestion:
         self.ejercicios_catalogo: List[Ejercicio] = []  # catálogo global
         self.rutinas: List[Rutina] = []
 
-    # Usuarios
+    # -------- Usuarios --------
     def agregar_usuario(self, nombre: str, edad: int):
         if self._buscar_usuario(nombre) is not None:
             raise ValueError("Ya existe un usuario con ese nombre.")
@@ -202,6 +203,7 @@ class SistemaGestion:
     def listar_usuarios(self):
         if not self.usuarios:
             print("No hay usuarios.")
+            return
         for u in self.usuarios:
             print(u)
 
@@ -211,7 +213,19 @@ class SistemaGestion:
                 return u
         return None
 
-    # Ejercicios (catálogo global)
+    def mostrar_rutinas_de_usuario(self, nombre_usuario: str):
+        u = self._buscar_usuario(nombre_usuario)
+        if not u:
+            print("Usuario no encontrado.")
+            return
+        if not u.rutinas:
+            print(f"{u.nombre} no tiene rutinas asignadas.")
+            return
+        print(f"Rutinas de {u.nombre}:")
+        for r in u.rutinas:
+            print(f"  - {r.nombre}: {minutos_a_texto(r.duracion_total_min())}")
+
+    # -------- Ejercicios (catálogo global) --------
     def crear_ejercicio(self, nombre: str, repeticiones: int, series: int):
         if any(
             ej.nombre.lower() == nombre.strip().lower()
@@ -257,7 +271,7 @@ class SistemaGestion:
             result.append(ej)
         return result
 
-    # Rutinas (siempre con ≥1 ejercicio del catálogo)
+    # -------- Rutinas (≥1 ejercicio del catálogo) --------
     def crear_rutina(
         self,
         nombre: str,
@@ -338,7 +352,7 @@ class SistemaGestion:
             raise ValueError("Rutina no encontrada.")
         r.actualizar_ejercicio(nombre_ejercicio, repeticiones, series)
 
-    # Asignación y Reporte
+    # -------- Asignación y Reporte --------
     def asignar_rutina_a_usuario(self, nombre_usuario: str, nombre_rutina: str):
         u = self._buscar_usuario(nombre_usuario)
         if u is None:
@@ -362,7 +376,7 @@ class SistemaGestion:
                     print(f"  - {r.nombre}: {minutos_a_texto(r.duracion_total_min())}")
         print("=" * 60)
 
-    # Menús de terminal
+    # -------- Menús de terminal --------
     def menu(self):
         while True:
             print("\n=== MENÚ PRINCIPAL ===")
@@ -370,8 +384,9 @@ class SistemaGestion:
             print("2) Ejercicios (catálogo)")
             print("3) Rutinas")
             print("4) Asignar rutina a usuario")
-            print("5) Reporte por usuario")
-            print("6) Salir")
+            print("5) Mostrar rutinas de un usuario")
+            print("6) Reporte por usuario")
+            print("7) Salir")
             op = input("Opción: ").strip()
             try:
                 if op == "1":
@@ -381,13 +396,16 @@ class SistemaGestion:
                 elif op == "3":
                     self.menu_rutinas()
                 elif op == "4":
-                    u = input("Usuario: ")
-                    r = input("Rutina: ")
+                    u = input("Usuario: ").strip()
+                    r = input("Rutina: ").strip()
                     self.asignar_rutina_a_usuario(u, r)
                     print("Rutina asignada.")
                 elif op == "5":
-                    self.reporte_por_usuario()
+                    nombre = input("Usuario: ").strip()
+                    self.mostrar_rutinas_de_usuario(nombre)
                 elif op == "6":
+                    self.reporte_por_usuario()
+                elif op == "7":
                     print("Hasta luego.")
                     break
                 else:
@@ -425,7 +443,6 @@ class SistemaGestion:
             print("3) Eliminar ejercicio")
             print("4) Volver")
             op = input("Opción: ").strip()
-            # try/except dentro de cada opción:
             try:
                 if op == "1":
                     nombre = input("Nombre: ").strip()
