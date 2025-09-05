@@ -1,12 +1,11 @@
-# fitness_oop_puro.py
 from typing import List, Optional, Dict
 
 
 class Parametros:
     """Parámetros globales de estimación (orientado a objetos)."""
 
-    SEC_POR_REP: int = 5  # segundos por repetición
-    DESCANSO_ENTRE_SERIES: int = 30  # segundos entre series
+    SEC_POR_REP: int = 5
+    DESCANSO_ENTRE_SERIES: int = 30
 
 
 class Utilidades:
@@ -99,7 +98,6 @@ class Rutina:
         self.nombre: str = nombre.strip()
         self.descripcion: str = descripcion.strip()
         self.ejercicios: List[Ejercicio] = []
-        # Copia explícita evitando list(...) y comprensiones
         i = 0
         while i < len(ejercicios):
             self.ejercicios.append(ejercicios[i])
@@ -114,7 +112,6 @@ class Rutina:
         if len(self.ejercicios) == 0:
             raise ValueError("Una rutina debe tener al menos un ejercicio.")
 
-        # Detección de duplicados sin sets ni comprensiones
         vistos: List[str] = []
         i = 0
         while i < len(self.ejercicios):
@@ -245,7 +242,6 @@ class Usuario:
         self.edad = int(nueva_edad)
 
     def asignar_rutina(self, rutina: Rutina) -> None:
-        # Evita duplicados por nombre de rutina
         key_rutina = Utilidades.normalizar(rutina.nombre)
         i = 0
         while i < len(self.rutinas):
@@ -376,7 +372,6 @@ class SistemaGestion:
         if ej is None:
             raise ValueError("No se encontró el ejercicio para eliminar.")
 
-        # Quitar de la lista manteniendo orden (sin comprensiones)
         nueva: List[Ejercicio] = []
         i = 0
         while i < len(self.ejercicios_catalogo):
@@ -385,13 +380,11 @@ class SistemaGestion:
             i += 1
         self.ejercicios_catalogo = nueva
 
-        # Intentar eliminar de las rutinas donde esté (sin romper rutinas si quedan vacías)
         i = 0
         while i < len(self.rutinas):
             try:
                 self.rutinas[i].eliminar_ejercicio(ej.nombre)
             except ValueError:
-                # Ignorar si no estaba o si la rutina quedaría vacía (política: no romper rutinas)
                 pass
             i += 1
 
@@ -403,7 +396,6 @@ class SistemaGestion:
             n = nombres[i]
             key = Utilidades.normalizar(n)
 
-            # Detectar repetidos en selección
             j = 0
             repetido = False
             while j < len(vistos):
@@ -474,7 +466,6 @@ class SistemaGestion:
 
         old_key = Utilidades.normalizar(r.nombre)
 
-        # Verifica nombre duplicado ANTES de cambiar (para no dejar estado inconsistente)
         if nuevo_nombre is not None:
             propuesto_key = Utilidades.normalizar(nuevo_nombre)
             if (propuesto_key != old_key) and (propuesto_key in self.idx_rutinas):
@@ -577,7 +568,6 @@ class SistemaGestion:
                     print("\nRutinas disponibles:")
                     self.listar_rutinas()
                     r = self._input_no_vacio("Rutinas (separadas por coma): ")
-                    # Parseo explícito
                     nombres_rutinas: List[str] = []
                     tmp = r.split(",")
                     i = 0
