@@ -1,185 +1,243 @@
-CONST SEC_POR_REP ← 5
-CONST DESCANSO_ENTRE_SERIES ← 30
+CLASE Parametros:
+    ATRIBUTOS DE CLASE:
+        SEC_POR_REP: ENTERO ← 5
+        DESCANSO_ENTRE_SERIES: ENTERO ← 30
+FIN CLASE
 
-FUNCIÓN minutos_a_texto(mins: REAL) → CADENA:
-    total_seg ← redondear(mins * 60)
-    m, s ← divmod(total_seg, 60)
-    DEVOLVER concat(m, " min ", s, " s")
+CLASE Utilidades:
+    MÉTODO ESTÁTICO minutos_a_texto(mins: REAL) → CADENA:
+        total ← ENTERO(REDONDEAR(mins * 60))
+        m ← total DIV 60
+        s ← total - (m * 60)
+        DEVOLVER m + " min " + s + " s"
+    FIN
 
-FUNCIÓN _norm(s: CADENA) → CADENA:
-    DEVOLVER s.quitar_espacios().minusculas()
+    MÉTODO ESTÁTICO normalizar(s: CADENA) → CADENA:
+        DEVOLVER MINUSC(TRIM(s))
+    FIN
+FIN CLASE
 
 CLASE Ejercicio:
-    // Atributos
-    nombre: CADENA
-    repeticiones: ENTERO
-    series: ENTERO
-    sec_por_rep: ENTERO
-    descanso_entre_series: ENTERO
+    ATRIBUTOS:
+        nombre: CADENA
+        repeticiones: ENTERO
+        series: ENTERO
+        sec_por_rep: ENTERO
+        descanso_entre_series: ENTERO
 
-    // Constructor
-    MÉTODO __init__(nombre, repeticiones, series, sec_por_rep=SEC_POR_REP, descanso_entre_series=DESCANSO_ENTRE_SERIES):
-        ESTE.nombre ← nombre.quitar_espacios()
+    MÉTODO __init__(nombre, repeticiones, series, sec_por_rep=Parametros.SEC_POR_REP, descanso_entre_series=Parametros.DESCANSO_ENTRE_SERIES):
+        ESTE.nombre ← TRIM(nombre)
         ESTE.repeticiones ← ENTERO(repeticiones)
         ESTE.series ← ENTERO(series)
         ESTE.sec_por_rep ← ENTERO(sec_por_rep)
         ESTE.descanso_entre_series ← ENTERO(descanso_entre_series)
-        _validar()
-    FIN MÉTODO
+        ESTE._validar()
+    FIN
 
-    // Validaciones
-    MÉTODO _validar() → NADA:
-        SI ESTE.nombre = "" → ERROR "El nombre del ejercicio no puede estar vacío."
-        SI ESTE.repeticiones ≤ 0 → ERROR "Las repeticiones deben ser mayores a 0."
-        SI ESTE.repeticiones > 100 → ERROR "Las repeticiones no pueden ser mayores a 100."
-        SI ESTE.series ≤ 0 → ERROR "Las series deben ser mayores a 0."
-        SI ESTE.series > 100 → ERROR "Las series no pueden ser mayores a 100."
-        SI ESTE.sec_por_rep ≤ 0 → ERROR "Tiempos inválidos para el ejercicio."
-        SI ESTE.descanso_entre_series < 0 → ERROR "Tiempos inválidos para el ejercicio."
-    FIN MÉTODO
+    MÉTODO PRIVADO _validar() → NADA:
+        SI nombre = "" → ERROR "El nombre del ejercicio no puede estar vacío."
+        SI repeticiones ≤ 0 → ERROR "Las repeticiones deben ser mayores a 0."
+        SI repeticiones > 100 → ERROR "Las repeticiones no pueden ser mayores a 100."
+        SI series ≤ 0 → ERROR "Las series deben ser mayores a 0."
+        SI series > 100 → ERROR "Las series no pueden ser mayores a 100."
+        SI sec_por_rep ≤ 0 → ERROR "Los segundos por repetición deben ser mayores a 0."
+        SI descanso_entre_series < 0 → ERROR "El descanso entre series no puede ser negativo."
+    FIN
 
-    // Cálculo de duración
+    MÉTODO cambiar_nombre(nuevo_nombre: CADENA) → NADA:
+        nuevo ← TRIM(nuevo_nombre)
+        SI nuevo = "" → ERROR "El nombre del ejercicio no puede quedar vacío."
+        ESTE.nombre ← nuevo
+    FIN
+
+    MÉTODO actualizar(repeticiones?: ENTERO, series?: ENTERO) → NADA:
+        SI repeticiones ≠ NULO:
+            SI repeticiones ≤ 0 → ERROR
+            SI repeticiones > 100 → ERROR
+            ESTE.repeticiones ← ENTERO(repeticiones)
+        SI series ≠ NULO:
+            SI series ≤ 0 → ERROR
+            SI series > 100 → ERROR
+            ESTE.series ← ENTERO(series)
+    FIN
+
     MÉTODO duracion_minutos() → REAL:
-        mov_seg ← repeticiones * sec_por_rep * series
-        desc_seg ← descanso_entre_series * MAX(0, series - 1)
-        DEVOLVER (mov_seg + desc_seg) / 60.0
-    FIN MÉTODO
-
-    // Mutaciones controladas
-    MÉTODO actualizar(repeticiones?, series?) → NADA:
-        SI repeticiones DEFINIDO:
-            SI repeticiones ≤ 0 → ERROR "Las repeticiones deben ser mayores a 0."
-            ESTE.repeticiones ← repeticiones
-        SI series DEFINIDO:
-            SI series ≤ 0 → ERROR "Las series deben ser mayores a 0."
-            ESTE.series ← series
-    FIN MÉTODO
+        movimiento ← repeticiones * sec_por_rep * series
+        descanso_series ← series - 1
+        SI descanso_series < 0 → descanso_series ← 0
+        descanso ← descanso_entre_series * descanso_series
+        DEVOLVER (movimiento + descanso) / 60.0
+    FIN
 
     MÉTODO __str__() → CADENA:
-        DEVOLVER concat(nombre, " | reps: ", repeticiones, " | series: ", series,
-                        " | estimado: ", minutos_a_texto(duracion_minutos()))
-    FIN MÉTODO
+        DEVOLVER nombre + " | reps: " + STR(repeticiones) + " | series: " + STR(series) +
+                " | estimado: " + Utilidades.minutos_a_texto(ESTE.duracion_minutos())
+    FIN
 FIN CLASE
 
 CLASE Rutina:
-    // Atributos
-    nombre: CADENA
-    descripcion: CADENA
-    ejercicios: LISTA[Ejercicio]
+    ATRIBUTOS:
+        nombre: CADENA
+        descripcion: CADENA
+        ejercicios: LISTA[Ejercicio]
 
-    // Constructor
-    MÉTODO __init__(nombre, descripcion, ejercicios):
-        ESTE.nombre ← nombre.quitar_espacios()
-        ESTE.descripcion ← descripcion.quitar_espacios()
-        ESTE.ejercicios ← copia_lista(ejercicios)
-        _validar()
-    FIN MÉTODO
+    MÉTODO __init__(nombre: CADENA, descripcion: CADENA, ejercicios: LISTA[Ejercicio]):
+        ESTE.nombre ← TRIM(nombre)
+        ESTE.descripcion ← TRIM(descripcion)
+        ESTE.ejercicios ← LISTA_VACÍA
+        i ← 0
+        MIENTRAS i < TAM(ejercicios):
+            AÑADIR ejercicios[i] A ESTE.ejercicios
+            i ← i + 1
+        FIN MIENTRAS
+        ESTE._validar()
+    FIN
 
-    // Validaciones
-    MÉTODO _validar() → NADA:
+    MÉTODO PRIVADO _validar() → NADA:
         SI nombre = "" → ERROR "El nombre de la rutina no puede estar vacío."
         SI descripcion = "" → ERROR "La descripción de la rutina no puede estar vacía."
-        SI ejercicios.vacío() → ERROR "Una rutina debe tener al menos un ejercicio."
-        nombres_norm ← [ _norm(ej.nombre) PARA ej EN ejercicios ]
-        SI tamaño(nombres_norm) ≠ tamaño(conjunto(nombres_norm)) → ERROR "Hay ejercicios duplicados por nombre dentro de la rutina."
-    FIN MÉTODO
+        SI TAM(ejercicios) = 0 → ERROR "Una rutina debe tener al menos un ejercicio."
+        vistos: LISTA[CADENA] ← []
+        i ← 0
+        MIENTRAS i < TAM(ejercicios):
+            key ← Utilidades.normalizar(ejercicios[i].nombre)
+            // buscar duplicado en 'vistos' sin sets
+            j ← 0; repetido ← FALSO
+            MIENTRAS j < TAM(vistos):
+                SI key = vistos[j] → repetido ← VERDADERO; ROMPER
+                j ← j + 1
+            FIN
+            SI repetido → ERROR "Hay ejercicios duplicados por nombre dentro de la rutina."
+            AÑADIR key A vistos
+            i ← i + 1
+        FIN
+    FIN
 
-    // Operaciones sobre ejercicios
     MÉTODO agregar_ejercicio(ejercicio: Ejercicio) → NADA:
-        key ← _norm(ejercicio.nombre)
-        SI EXISTE ej EN ejercicios CON _norm(ej.nombre) = key → ERROR "Ya existe un ejercicio con ese nombre en la rutina."
-        ejercicios.agregar(ejercicio)
-    FIN MÉTODO
+        key_nuevo ← Utilidades.normalizar(ejercicio.nombre)
+        i ← 0
+        MIENTRAS i < TAM(ejercicios):
+            SI Utilidades.normalizar(ejercicios[i].nombre) = key_nuevo → ERROR "Ya existe un ejercicio 'X' en la rutina."
+            i ← i + 1
+        FIN
+        AÑADIR ejercicio A ejercicios
+    FIN
 
     MÉTODO eliminar_ejercicio(nombre_ejercicio: CADENA) → NADA:
-        key ← _norm(nombre_ejercicio)
-        nueva ← [ ej PARA ej EN ejercicios SI _norm(ej.nombre) ≠ key ]
-        SI tamaño(nueva) = tamaño(ejercicios) → ERROR "No se encontró el ejercicio para eliminar."
-        SI nueva.vacío() → ERROR "La rutina no puede quedarse vacía; agrega otro ejercicio o cancela la eliminación."
+        key ← Utilidades.normalizar(nombre_ejercicio)
+        nueva ← LISTA_VACÍA
+        encontrado ← FALSO
+        i ← 0
+        MIENTRAS i < TAM(ejercicios):
+            ej ← ejercicios[i]
+            SI Utilidades.normalizar(ej.nombre) = key → encontrado ← VERDADERO
+            SINO → AÑADIR ej A nueva
+            i ← i + 1
+        FIN
+        SI NO encontrado → ERROR "No se encontró el ejercicio para eliminar."
+        SI TAM(nueva) = 0 → ERROR "La rutina no puede quedarse vacía; agrega otro ejercicio o cancela la eliminación."
         ejercicios ← nueva
-    FIN MÉTODO
+    FIN
 
-    MÉTODO actualizar_datos(nombre?, descripcion?) → NADA:
-        SI nombre DEFINIDO:
-            nombre ← nombre.quitar_espacios()
-            SI nombre = "" → ERROR "El nombre de la rutina no puede quedar vacío."
-            ESTE.nombre ← nombre
-        SI descripcion DEFINIDO:
-            descripcion ← descripcion.quitar_espacios()
-            SI descripcion = "" → ERROR "La descripción de la rutina no puede quedar vacía."
-            ESTE.descripcion ← descripcion
-    FIN MÉTODO
+    MÉTODO actualizar_datos(nombre?: CADENA, descripcion?: CADENA) → NADA:
+        SI nombre ≠ NULO:
+            nuevo ← TRIM(nombre)
+            SI nuevo = "" → ERROR "El nombre de la rutina no puede quedar vacío."
+            ESTE.nombre ← nuevo
+        SI descripcion ≠ NULO:
+            nueva ← TRIM(descripcion)
+            SI nueva = "" → ERROR "La descripción de la rutina no puede quedar vacía."
+            ESTE.descripcion ← nueva
+    FIN
 
-    MÉTODO actualizar_ejercicio(nombre_ejercicio, repeticiones?, series?) → NADA:
-        ej ← _buscar(nombre_ejercicio)     // lanza error si no existe
+    MÉTODO actualizar_ejercicio(nombre_ejercicio: CADENA, repeticiones?: ENTERO, series?: ENTERO) → NADA:
+        ej ← ESTE._buscar(nombre_ejercicio)    // lanza error si no existe
         ej.actualizar(repeticiones, series)
-    FIN MÉTODO
+    FIN
 
-    MÉTODO _buscar(nombre_ejercicio: CADENA) → Ejercicio:
-        key ← _norm(nombre_ejercicio)
-        PARA CADA ej EN ejercicios:
-            SI _norm(ej.nombre) = key → DEVOLVER ej
-        FIN PARA
+    MÉTODO PRIVADO _buscar(nombre_ejercicio: CADENA) → Ejercicio:
+        key ← Utilidades.normalizar(nombre_ejercicio)
+        i ← 0
+        MIENTRAS i < TAM(ejercicios):
+            SI Utilidades.normalizar(ejercicios[i].nombre) = key → DEVOLVER ejercicios[i]
+            i ← i + 1
+        FIN
         ERROR "Ejercicio no encontrado en la rutina."
-    FIN MÉTODO
+    FIN
 
     MÉTODO duracion_total_min() → REAL:
-        DEVOLVER sumatoria( ej.duracion_minutos() PARA ej EN ejercicios )
-    FIN MÉTODO
+        total ← 0.0
+        i ← 0
+        MIENTRAS i < TAM(ejercicios):
+            total ← total + ejercicios[i].duracion_minutos()
+            i ← i + 1
+        FIN
+        DEVOLVER total
+    FIN
 
     MÉTODO __str__() → CADENA:
-        DEVOLVER bloque_texto(
-            "Rutina: " + nombre,
-            "Descripción: " + descripcion,
-            "Total: " + minutos_a_texto(duracion_total_min()),
-            "Ejercicios: " + tamaño(ejercicios)
-        )
-    FIN MÉTODO
+        DEVOLVER "Rutina: " + nombre + "\n" +
+                 "Descripción: " + descripcion + "\n" +
+                 "Total: " + Utilidades.minutos_a_texto(ESTE.duracion_total_min()) + "\n" +
+                 "Ejercicios: " + STR(TAM(ejercicios))
+    FIN
 FIN CLASE
 
 CLASE Usuario:
-    // Atributos
-    nombre: CADENA
-    edad: ENTERO
-    rutinas: LISTA[Rutina]
+    ATRIBUTOS:
+        nombre: CADENA
+        edad: ENTERO
+        rutinas: LISTA[Rutina]
 
-    // Constructor
     MÉTODO __init__(nombre, edad):
-        ESTE.nombre ← nombre.quitar_espacios()
+        ESTE.nombre ← TRIM(nombre)
         ESTE.edad ← ENTERO(edad)
-        ESTE.rutinas ← lista_vacía
-        _validar()
-    FIN MÉTODO
+        ESTE.rutinas ← []
+        ESTE._validar()
+    FIN
 
-    // Validaciones
-    MÉTODO _validar() → NADA:
+    MÉTODO PRIVADO _validar() → NADA:
         SI nombre = "" → ERROR "El nombre del usuario no puede estar vacío."
-        SI edad < 16 → ERROR "La edad debe ser un número mayor o igual a 16 años."
-        SI edad > 100 → ERROR "La edad debe ser menor o igual a 100 años."
-    FIN MÉTODO
+        SI edad < 16 → ERROR "La edad debe ser ≥ 16 años."
+        SI edad > 100 → ERROR "La edad debe ser ≤ 100 años."
+    FIN
 
-    // Operaciones
+    MÉTODO cambiar_nombre(nuevo_nombre: CADENA) → NADA:
+        nuevo ← TRIM(nuevo_nombre)
+        SI nuevo = "" → ERROR
+        nombre ← nuevo
+    FIN
+
+    MÉTODO cambiar_edad(nueva_edad: ENTERO) → NADA:
+        SI nueva_edad < 16 → ERROR
+        SI nueva_edad > 100 → ERROR
+        edad ← ENTERO(nueva_edad)
+    FIN
+
     MÉTODO asignar_rutina(rutina: Rutina) → NADA:
-        key ← _norm(rutina.nombre)
-        SI EXISTE r EN rutinas CON _norm(r.nombre) = key → ERROR "El usuario ya tiene una rutina con ese nombre."
-        rutinas.agregar(rutina)
-    FIN MÉTODO
+        key_rutina ← Utilidades.normalizar(rutina.nombre)
+        i ← 0
+        MIENTRAS i < TAM(rutinas):
+            SI Utilidades.normalizar(rutinas[i].nombre) = key_rutina → ERROR "El usuario ya tiene esa rutina."
+            i ← i + 1
+        FIN
+        AÑADIR rutina A rutinas
+    FIN
 
     MÉTODO __str__() → CADENA:
-        DEVOLVER concat("Usuario: ", nombre, " | Edad: ", edad, " | Rutinas: ", tamaño(rutinas))
-    FIN MÉTODO
+        DEVOLVER "Usuario: " + nombre + " | Edad: " + STR(edad) + " | Rutinas: " + STR(TAM(rutinas))
+    FIN
 FIN CLASE
 
 CLASE SistemaGestion:
-    // Listas ordenadas (para mostrar) + índices O(1) por nombre normalizado
-    usuarios: LISTA[Usuario]
-    ejercicios_catalogo: LISTA[Ejercicio]
-    rutinas: LISTA[Rutina]
-    idx_usuarios: DICC[CADENA→Usuario]
-    idx_ejercicios: DICC[CADENA→Ejercicio]
-    idx_rutinas: DICC[CADENA→Rutina]
+    ATRIBUTOS:
+        usuarios: LISTA[Usuario]
+        ejercicios_catalogo: LISTA[Ejercicio]
+        rutinas: LISTA[Rutina]
+        idx_usuarios: DICC[CADENA → Usuario]
+        idx_ejercicios: DICC[CADENA → Ejercicio]
+        idx_rutinas: DICC[CADENA → Rutina]
 
-    // Constructor
     MÉTODO __init__():
         usuarios ← []
         ejercicios_catalogo ← []
@@ -187,148 +245,178 @@ CLASE SistemaGestion:
         idx_usuarios ← {}
         idx_ejercicios ← {}
         idx_rutinas ← {}
-    FIN MÉTODO
+    FIN
 
-    // -------- Helpers I/O ----------
-    MÉTODO _input_no_vacio(msg: CADENA) → CADENA:
+    // ------- Helpers I/O -------
+    MÉTODO ESTÁTICO _input_no_vacio(msg: CADENA) → CADENA:
         MIENTRAS VERDADERO:
-            txt ← LEER_ENTRADA(msg).quitar_espacios()
+            txt ← TRIM(LEER(msg))
             SI txt ≠ "" → DEVOLVER txt
             IMPRIMIR "El valor no puede estar vacío."
-        FIN MIENTRAS
-    FIN MÉTODO
+        FIN
+    FIN
 
-    MÉTODO _input_int(msg: CADENA, minimo?, maximo?) → ENTERO:
+    MÉTODO ESTÁTICO _input_int(msg: CADENA, minimo?: ENTERO, maximo?: ENTERO) → ENTERO:
         MIENTRAS VERDADERO:
-            INTENTAR:
-                val ← ENTERO(LEER_ENTRADA(msg).quitar_espacios())
-                SI minimo DEFINIDO Y val < minimo → IMPRIMIR "El valor debe ser ≥ " + minimo; CONTINUAR
-                SI maximo DEFINIDO Y val > maximo → IMPRIMIR "El valor debe ser ≤ " + maximo; CONTINUAR
+            texto ← TRIM(LEER(msg))
+            INTENTA:
+                val ← ENTERO(testo)
+                SI (minimo ≠ NULO) Y (val < minimo) → IMPRIMIR "≥ minimo"; CONTINUAR
+                SI (maximo ≠ NULO) Y (val > maximo) → IMPRIMIR "≤ maximo"; CONTINUAR
                 DEVOLVER val
-            CAPTURAR_EXCEPCIÓN:
+            CAPTURA ValueError:
                 IMPRIMIR "Ingresa un número entero válido."
-        FIN MIENTRAS
-    FIN MÉTODO
+        FIN
+    FIN
 
-    // -------- Usuarios ----------
+    // ------- Usuarios -------
     MÉTODO _buscar_usuario(nombre: CADENA) → Usuario|NULO:
-        DEVOLVER idx_usuarios.get(_norm(nombre))
-    FIN MÉTODO
+        DEVOLVER idx_usuarios.get(Utilidades.normalizar(nombre))
+    FIN
 
     MÉTODO agregar_usuario(nombre: CADENA, edad: ENTERO) → NADA:
-        key ← _norm(nombre)
+        key ← Utilidades.normalizar(nombre)
         SI key EN idx_usuarios → ERROR "Ya existe un usuario con ese nombre."
         u ← NUEVO Usuario(nombre, edad)
         idx_usuarios[key] ← u
-        usuarios.agregar(u)
-    FIN MÉTODO
+        AÑADIR u A usuarios
+    FIN
 
     MÉTODO listar_usuarios() → NADA:
-        SI usuarios.vacío() → IMPRIMIR "No hay usuarios."; RETORNAR
-        PARA CADA u EN usuarios:
-            IMPRIMIR u.__str__()
-        FIN PARA
-    FIN MÉTODO
+        SI TAM(usuarios) = 0 → IMPRIMIR "No hay usuarios."; RETORNAR
+        i ← 0
+        MIENTRAS i < TAM(usuarios):
+            IMPRIMIR usuarios[i].__str__()
+            i ← i + 1
+        FIN
+    FIN
 
     MÉTODO mostrar_rutinas_de_usuario(nombre_usuario: CADENA) → NADA:
         u ← _buscar_usuario(nombre_usuario)
         SI u = NULO → IMPRIMIR "Usuario no encontrado."; RETORNAR
-        SI u.rutinas.vacío() → IMPRIMIR u.nombre + " no tiene rutinas asignadas."; RETORNAR
+        SI TAM(u.rutinas) = 0 → IMPRIMIR u.nombre + " no tiene rutinas asignadas."; RETORNAR
         IMPRIMIR "Rutinas de " + u.nombre + ":"
-        PARA CADA r EN u.rutinas:
-            IMPRIMIR "  - " + r.nombre + ": " + minutos_a_texto(r.duracion_total_min())
-        FIN PARA
-    FIN MÉTODO
+        i ← 0
+        MIENTRAS i < TAM(u.rutinas):
+            r ← u.rutinas[i]
+            IMPRIMIR "  - " + r.nombre + ": " + Utilidades.minutos_a_texto(r.duracion_total_min())
+            i ← i + 1
+        FIN
+    FIN
 
-    // -------- Ejercicios (catálogo) ----------
+    // ------- Ejercicios (catálogo) -------
     MÉTODO _buscar_ejercicio_catalogo(nombre: CADENA) → Ejercicio|NULO:
-        DEVOLVER idx_ejercicios.get(_norm(nombre))
-    FIN MÉTODO
+        DEVOLVER idx_ejercicios.get(Utilidades.normalizar(nombre))
+    FIN
 
     MÉTODO crear_ejercicio(nombre: CADENA, repeticiones: ENTERO, series: ENTERO) → NADA:
-        key ← _norm(nombre)
-        SI key EN idx_ejercicios → ERROR "Ya existe un ejercicio en el catálogo con ese nombre."
+        key ← Utilidades.normalizar(nombre)
+        SI key EN idx_ejercicios → ERROR "Ya existe un ejercicio con ese nombre."
         ej ← NUEVO Ejercicio(nombre, repeticiones, series)
         idx_ejercicios[key] ← ej
-        ejercicios_catalogo.agregar(ej)
-        IMPRIMIR "Ejercicio creado. Duración estimada: " + minutos_a_texto(ej.duracion_minutos())
-    FIN MÉTODO
+        AÑADIR ej A ejercicios_catalogo
+        IMPRIMIR "Ejercicio creado. Duración estimada: " + Utilidades.minutos_a_texto(ej.duracion_minutos())
+    FIN
 
     MÉTODO listar_ejercicios() → NADA:
-        SI ejercicios_catalogo.vacío() → IMPRIMIR "(Catálogo vacío)"; RETORNAR
-        PARA CADA ej EN ejercicios_catalogo:
-            IMPRIMIR "- " + ej.__str__()
-        FIN PARA
-    FIN MÉTODO
+        SI TAM(ejercicios_catalogo) = 0 → IMPRIMIR "(Catálogo vacío)"; RETORNAR
+        i ← 0
+        MIENTRAS i < TAM(ejercicios_catalogo):
+            IMPRIMIR "- " + ejercicios_catalogo[i].__str__()
+            i ← i + 1
+        FIN
+    FIN
 
     MÉTODO eliminar_ejercicio(nombre: CADENA) → NADA:
-        key ← _norm(nombre)
-        ej ← idx_ejercicios.eliminar_y_obtener(key)    // devuelve NULO si no existe
+        key ← Utilidades.normalizar(nombre)
+        ej ← idx_ejercicios.pop(key, NULO)
         SI ej = NULO → ERROR "No se encontró el ejercicio para eliminar."
-        ejercicios_catalogo ← [ e PARA e EN ejercicios_catalogo SI e ≠ ej ]
-        // Removerlo de rutinas sin romperlas (si dejaría vacía, la rutina lanza error y se ignora)
-        PARA CADA r EN rutinas:
-            INTENTAR:
-                r.eliminar_ejercicio(ej.nombre)
-            CAPTURAR_EXCEPCIÓN:
-                // ignorar si no está o quedaría vacía
-                NOP
-        FIN PARA
-    FIN MÉTODO
+        // quitar de lista conservando orden
+        nueva ← []
+        i ← 0
+        MIENTRAS i < TAM(ejercicios_catalogo):
+            SI ejercicios_catalogo[i] ≠ ej → AÑADIR ejercicios_catalogo[i] A nueva
+            i ← i + 1
+        FIN
+        ejercicios_catalogo ← nueva
+        // intentar quitar de rutinas, ignorando errores (no romper rutinas)
+        i ← 0
+        MIENTRAS i < TAM(rutinas):
+            INTENTA: rutinas[i].eliminar_ejercicio(ej.nombre)
+            CAPTURA ValueError: NADA
+            i ← i + 1
+        FIN
+    FIN
 
     MÉTODO obtener_ejercicios_por_nombres(nombres: LISTA[CADENA]) → LISTA[Ejercicio]:
         res ← []
-        vistos ← conjunto_vacío
-        PARA CADA n EN nombres:
-            key ← _norm(n)
-            SI key EN vistos → ERROR "Nombre de ejercicio repetido en la selección: '" + n + "'."
+        vistos ← []
+        i ← 0
+        MIENTRAS i < TAM(nombres):
+            n ← nombres[i]
+            key ← Utilidades.normalizar(n)
+            // chequear repetido en 'vistos'
+            j ← 0; repetido ← FALSO
+            MIENTRAS j < TAM(vistos):
+                SI key = vistos[j] → repetido ← VERDADERO; ROMPER
+                j ← j + 1
+            FIN
+            SI repetido → ERROR "Nombre de ejercicio repetido en la selección: 'n'."
             ej ← idx_ejercicios.get(key)
-            SI ej = NULO → ERROR "Ejercicio '" + n + "' no existe en el catálogo."
-            res.agregar(ej)
-            vistos.agregar(key)
-        FIN PARA
+            SI ej = NULO → ERROR "Ejercicio 'n' no existe en el catálogo."
+            AÑADIR ej A res
+            AÑADIR key A vistos
+            i ← i + 1
+        FIN
         DEVOLVER res
-    FIN MÉTODO
+    FIN
 
-    // -------- Rutinas ----------
+    // ------- Rutinas -------
     MÉTODO _buscar_rutina(nombre: CADENA) → Rutina|NULO:
-        DEVOLVER idx_rutinas.get(_norm(nombre))
-    FIN MÉTODO
+        DEVOLVER idx_rutinas.get(Utilidades.normalizar(nombre))
+    FIN
 
     MÉTODO crear_rutina(nombre: CADENA, descripcion: CADENA, nombres_ejercicios: LISTA[CADENA]) → NADA:
-        SI ejercicios_catalogo.vacío() → ERROR "Primero crea ejercicios en el catálogo."
-        SI nombres_ejercicios.vacío() → ERROR "Debes seleccionar al menos un ejercicio para la rutina."
-        key ← _norm(nombre)
+        SI TAM(ejercicios_catalogo) = 0 → ERROR "Primero crea ejercicios en el catálogo."
+        SI TAM(nombres_ejercicios) = 0 → ERROR "Debes seleccionar al menos un ejercicio para la rutina."
+        key ← Utilidades.normalizar(nombre)
         SI key EN idx_rutinas → ERROR "Ya existe una rutina con ese nombre."
-        ejercicios ← obtener_ejercicios_por_nombres(nombres_ejercicios)
+        ejercicios ← ESTE.obtener_ejercicios_por_nombres(nombres_ejercicios)
         r ← NUEVO Rutina(nombre, descripcion, ejercicios)
         idx_rutinas[key] ← r
-        rutinas.agregar(r)
-    FIN MÉTODO
+        AÑADIR r A rutinas
+    FIN
 
     MÉTODO listar_rutinas() → NADA:
-        SI rutinas.vacío() → IMPRIMIR "No hay rutinas."; RETORNAR
-        PARA CADA r EN rutinas:
-            IMPRIMIR repetir("-", 60)
+        SI TAM(rutinas) = 0 → IMPRIMIR "No hay rutinas."; RETORNAR
+        IMPRIMIR REPETIR("-", 60)
+        i ← 0
+        MIENTRAS i < TAM(rutinas):
+            r ← rutinas[i]
             IMPRIMIR r.__str__()
-            PARA CADA ej EN r.ejercicios:
-                IMPRIMIR "  • " + ej.__str__()
-            FIN PARA
-        FIN PARA
-        IMPRIMIR repetir("-", 60)
-    FIN MÉTODO
+            k ← 0
+            MIENTRAS k < TAM(r.ejercicios):
+                IMPRIMIR "  • " + r.ejercicios[k].__str__()
+                k ← k + 1
+            FIN
+            IMPRIMIR REPETIR("-", 60)
+            i ← i + 1
+        FIN
+    FIN
 
-    MÉTODO editar_rutina(nombre: CADENA, nuevo_nombre?, nueva_desc?) → NADA:
+    MÉTODO editar_rutina(nombre: CADENA, nuevo_nombre?: CADENA, nueva_desc?: CADENA) → NADA:
         r ← _buscar_rutina(nombre)
         SI r = NULO → ERROR "Rutina no encontrada."
-        old_key ← _norm(r.nombre)
+        old_key ← Utilidades.normalizar(r.nombre)
+        SI nuevo_nombre ≠ NULO:
+            propuesto_key ← Utilidades.normalizar(nuevo_nombre)
+            SI (propuesto_key ≠ old_key) Y (propuesto_key EN idx_rutinas) → ERROR "Ya existe otra rutina con ese nombre."
         r.actualizar_datos(nuevo_nombre, nueva_desc)
-        new_key ← _norm(r.nombre)
+        new_key ← Utilidades.normalizar(r.nombre)
         SI new_key ≠ old_key:
-            SI new_key EN idx_rutinas → ERROR "Ya existe otra rutina con ese nombre."
-            idx_rutinas.eliminar(old_key)
+            ELIMINAR idx_rutinas[old_key]
             idx_rutinas[new_key] ← r
-    FIN MÉTODO
+    FIN
 
     MÉTODO rutina_agregar_ejercicio(nombre_rutina: CADENA, nombre_ejercicio: CADENA) → NADA:
         r ← _buscar_rutina(nombre_rutina)
@@ -336,321 +424,299 @@ CLASE SistemaGestion:
         ej ← _buscar_ejercicio_catalogo(nombre_ejercicio)
         SI ej = NULO → ERROR "Ese ejercicio no existe en el catálogo."
         r.agregar_ejercicio(ej)
-    FIN MÉTODO
+    FIN
 
     MÉTODO rutina_eliminar_ejercicio(nombre_rutina: CADENA, nombre_ejercicio: CADENA) → NADA:
         r ← _buscar_rutina(nombre_rutina)
         SI r = NULO → ERROR "Rutina no encontrada."
         r.eliminar_ejercicio(nombre_ejercicio)
-    FIN MÉTODO
+    FIN
 
-    MÉTODO rutina_actualizar_ejercicio(nombre_rutina: CADENA, nombre_ejercicio: CADENA, repeticiones?, series?) → NADA:
+    MÉTODO rutina_actualizar_ejercicio(nombre_rutina: CADENA, nombre_ejercicio: CADENA, repeticiones?: ENTERO, series?: ENTERO) → NADA:
         r ← _buscar_rutina(nombre_rutina)
         SI r = NULO → ERROR "Rutina no encontrada."
         r.actualizar_ejercicio(nombre_ejercicio, repeticiones, series)
-    FIN MÉTODO
+    FIN
 
-    // -------- Asignación y Reporte ----------
+    // ------- Asignación y Reporte -------
     MÉTODO asignar_rutina_a_usuario(nombre_usuario: CADENA, nombre_rutina: CADENA) → NADA:
         u ← _buscar_usuario(nombre_usuario)
         SI u = NULO → ERROR "Usuario no encontrado."
         r ← _buscar_rutina(nombre_rutina)
         SI r = NULO → ERROR "Rutina no encontrada."
         u.asignar_rutina(r)
-    FIN MÉTODO
+    FIN
 
     MÉTODO reporte_por_usuario() → NADA:
-        SI usuarios.vacío() → IMPRIMIR "No hay usuarios."; RETORNAR
-        PARA CADA u EN usuarios:
-            IMPRIMIR repetir("=", 60)
-            IMPRIMIR "Usuario: " + u.nombre + " | Edad: " + u.edad
-            SI u.rutinas.vacío():
+        SI TAM(usuarios) = 0 → IMPRIMIR "No hay usuarios."; RETORNAR
+        IMPRIMIR REPETIR("=", 60)
+        i ← 0
+        MIENTRAS i < TAM(usuarios):
+            u ← usuarios[i]
+            IMPRIMIR "Usuario: " + u.nombre + " | Edad: " + STR(u.edad)
+            SI TAM(u.rutinas) = 0:
                 IMPRIMIR "  (Sin rutinas asignadas)"
             SINO:
-                PARA CADA r EN u.rutinas:
-                    IMPRIMIR "  - " + r.nombre + ": " + minutos_a_texto(r.duracion_total_min())
-                FIN PARA
-        FIN PARA
-        IMPRIMIR repetir("=", 60)
-    FIN MÉTODO
+                j ← 0
+                MIENTRAS j < TAM(u.rutinas):
+                    r ← u.rutinas[j]
+                    IMPRIMIR "  - " + r.nombre + ": " + Utilidades.minutos_a_texto(r.duracion_total_min())
+                    j ← j + 1
+                FIN
+            FIN
+            IMPRIMIR REPETIR("=", 60)
+            i ← i + 1
+        FIN
+    FIN
 
-    // -------- Menús de terminal ----------
+    // ------- Menús de terminal -------
     MÉTODO menu() → NADA:
         MIENTRAS VERDADERO:
-            IMPRIMIR ""
-            IMPRIMIR "=== MENÚ PRINCIPAL ==="
-            IMPRIMIR "1) Usuarios"
-            IMPRIMIR "2) Ejercicios (catálogo)"
-            IMPRIMIR "3) Rutinas"
-            IMPRIMIR "4) Asignar rutina a usuario"
-            IMPRIMIR "5) Mostrar rutinas de un usuario"
-            IMPRIMIR "6) Reporte por usuario"
-            IMPRIMIR "7) Salir"
-            op ← LEER_ENTRADA("Opción: ").quitar_espacios()
-            INTENTAR:
-                SI op = "1" → menu_usuarios()
-                SINO SI op = "2" → menu_ejercicios()
-                SINO SI op = "3" → menu_rutinas()
-                SINO SI op = "4":
-                    u ← _input_no_vacio("Usuario: ")
-                    IMPRIMIR "\nRutinas disponibles:"; listar_rutinas()
-                    r_line ← _input_no_vacio("Rutinas (separadas por coma): ")
-                    nombres_rutinas ← [ n.quitar_espacios() PARA n EN split_por_coma(r_line) SI n.quitar_espacios() ≠ "" ]
-                    errores ← []
-                    PARA CADA nombre_r EN nombres_rutinas:
-                        INTENTAR: asignar_rutina_a_usuario(u, nombre_r)
-                        CAPTURAR_EXCEPCIÓN e: errores.agregar(nombre_r + ": " + e.mensaje)
-                    FIN PARA
-                    SI NO errores.vacío():
-                        IMPRIMIR "Algunos errores al asignar rutinas:"
-                        PARA CADA err EN errores: IMPRIMIR "  [Error] " + err
-                    SINO:
-                        IMPRIMIR "Rutinas asignadas."
-                SINO SI op = "5":
-                    nombre ← LEER_ENTRADA("Usuario: ").quitar_espacios()
-                    mostrar_rutinas_de_usuario(nombre)
-                SINO SI op = "6" → reporte_por_usuario()
-                SINO SI op = "7" → IMPRIMIR "Hasta luego."; ROMPER_BUCLE
-                SINO → IMPRIMIR "Opción no válida."
-            CAPTURAR_EXCEPCIÓN e:
+            IMPRIMIR menú_principal_opciones
+            op ← TRIM(LEER("Opción: "))
+            INTENTA:
+                SEGÚN op:
+                    "1": ESTE.menu_usuarios()
+                    "2": ESTE.menu_ejercicios()
+                    "3": ESTE.menu_rutinas()
+                    "4":
+                        u ← _input_no_vacio("Usuario: ")
+                        IMPRIMIR "\nRutinas disponibles:"; ESTE.listar_rutinas()
+                        r_line ← _input_no_vacio("Rutinas (separadas por coma): ")
+                        nombres_rutinas ← PARSEAR_COMAS_TRIM_NO_VACÍAS(r_line)
+                        errores ← []
+                        i ← 0
+                        MIENTRAS i < TAM(nombres_rutinas):
+                            nombre_r ← nombres_rutinas[i]
+                            INTENTA: ESTE.asignar_rutina_a_usuario(u, nombre_r)
+                            CAPTURA ValueError e: AÑADIR (nombre_r + ": " + e.mensaje) A errores
+                            i ← i + 1
+                        FIN
+                        SI TAM(errores) > 0:
+                            IMPRIMIR "Algunos errores al asignar rutinas:" y listar errores
+                        SINO:
+                            IMPRIMIR "Rutinas asignadas."
+                    "5":
+                        nombre ← _input_no_vacio("Usuario: ")
+                        ESTE.mostrar_rutinas_de_usuario(nombre)
+                    "6": ESTE.reporte_por_usuario()
+                    "7": IMPRIMIR "Hasta luego."; ROMPER
+                    OTRO: IMPRIMIR "Opción no válida."
+            CAPTURA ValueError e:
                 IMPRIMIR "[Error] " + e.mensaje
-        FIN MIENTRAS
-    FIN MÉTODO
+        FIN
+    FIN
 
-    // -------- Submenús ----------
     MÉTODO menu_usuarios() → NADA:
         MIENTRAS VERDADERO:
-            IMPRIMIR "\n--- Usuarios ---"
-            IMPRIMIR "1) Agregar"
-            IMPRIMIR "2) Listar"
-            IMPRIMIR "3) Editar usuario"
-            IMPRIMIR "4) Volver"
-            op ← LEER_ENTRADA("Opción: ").quitar_espacios()
-
+            IMPRIMIR opciones_usuarios
+            op ← TRIM(LEER("Opción: "))
             SI op = "1":
+                // agregar
                 MIENTRAS VERDADERO:
                     nombre ← _input_no_vacio("Nombre: ")
-                    SI _buscar_usuario(nombre) ≠ NULO → IMPRIMIR "Ya existe un usuario con ese nombre. Intenta otro."
-                    SINO → ROMPER_BUCLE
-                FIN MIENTRAS
-                edad ← _input_int("Edad: ", minimo=16, maximo=100)
-                INTENTAR: agregar_usuario(nombre, edad); IMPRIMIR "Usuario agregado."
-                CAPTURAR_EXCEPCIÓN e: IMPRIMIR "[Error] " + e.mensaje
-
-            SINO SI op = "2":
-                listar_usuarios()
-
+                    SI _buscar_usuario(nombre) ≠ NULO → IMPRIMIR "Ya existe..."; CONTINUAR
+                    ROMPER
+                FIN
+                edad ← _input_int("Edad: ", 16, 100)
+                INTENTA: agregar_usuario(nombre, edad); IMPRIMIR "Usuario agregado."
+                CAPTURA ValueError e: IMPRIMIR "[Error] " + e.mensaje
+            SINO SI op = "2": listar_usuarios()
             SINO SI op = "3":
                 nombre ← _input_no_vacio("Nombre del usuario a editar: ")
                 usuario ← _buscar_usuario(nombre)
                 SI usuario = NULO → IMPRIMIR "No existe ese usuario."; CONTINUAR
                 MIENTRAS VERDADERO:
-                    IMPRIMIR "\nEditando usuario: " + usuario.nombre
-                    IMPRIMIR "1) Cambiar nombre"
-                    IMPRIMIR "2) Cambiar edad"
-                    IMPRIMIR "3) Volver"
-                    subop ← LEER_ENTRADA("Opción: ").quitar_espacios()
+                    IMPRIMIR submenú_editar_usuario(usuario.nombre)
+                    subop ← TRIM(LEER("Opción: "))
                     SI subop = "1":
                         nuevo ← _input_no_vacio("Nuevo nombre: ")
-                        SI _buscar_usuario(nuevo) ≠ NULO → IMPRIMIR "Ya existe un usuario con ese nombre."; CONTINUAR
-                        old_key ← _norm(usuario.nombre)
-                        usuario.nombre ← nuevo.quitar_espacios()
-                        idx_usuarios.eliminar(old_key)
-                        idx_usuarios[_norm(usuario.nombre)] ← usuario
-                        IMPRIMIR "Nombre actualizado."
+                        SI _buscar_usuario(nuevo) ≠ NULO → IMPRIMIR "Ya existe..."; CONTINUAR
+                        old_key ← Utilidades.normalizar(usuario.nombre)
+                        INTENTA:
+                            usuario.cambiar_nombre(nuevo)
+                            ELIMINAR idx_usuarios[old_key]
+                            idx_usuarios[Utilidades.normalizar(usuario.nombre)] ← usuario
+                            IMPRIMIR "Nombre actualizado."
+                        CAPTURA ValueError e:
+                            IMPRIMIR "[Error] " + e.mensaje
                     SINO SI subop = "2":
-                        usuario.edad ← _input_int("Nueva edad: ", minimo=16, maximo=100)
-                        IMPRIMIR "Edad actualizada."
-                    SINO SI subop = "3":
-                        ROMPER_BUCLE
-                    SINO:
-                        IMPRIMIR "Opción no válida."
-                FIN MIENTRAS
-
-            SINO SI op = "4":
-                RETORNAR
-            SINO:
-                IMPRIMIR "Opción no válida."
-        FIN MIENTRAS
-    FIN MÉTODO
+                        INTENTA:
+                            nueva_edad ← _input_int("Nueva edad: ", 16, 100)
+                            usuario.cambiar_edad(nueva_edad)
+                            IMPRIMIR "Edad actualizada."
+                        CAPTURA ValueError e:
+                            IMPRIMIR "[Error] " + e.mensaje
+                    SINO SI subop = "3": ROMPER
+                    SINO: IMPRIMIR "Opción no válida."
+                FIN
+            SINO SI op = "4": RETORNAR
+            SINO: IMPRIMIR "Opción no válida."
+        FIN
+    FIN
 
     MÉTODO menu_ejercicios() → NADA:
         MIENTRAS VERDADERO:
-            IMPRIMIR "\n--- Ejercicios (catálogo) ---"
-            IMPRIMIR "1) Crear ejercicio"
-            IMPRIMIR "2) Listar ejercicios"
-            IMPRIMIR "3) Editar ejercicio"
-            IMPRIMIR "4) Eliminar ejercicio"
-            IMPRIMIR "5) Volver"
-            op ← LEER_ENTRADA("Opción: ").quitar_espacios()
-
+            IMPRIMIR opciones_ejercicios
+            op ← TRIM(LEER("Opción: "))
             SI op = "1":
+                // crear
                 MIENTRAS VERDADERO:
                     nombre ← _input_no_vacio("Nombre: ")
-                    SI _buscar_ejercicio_catalogo(nombre) ≠ NULO → IMPRIMIR "Ya existe un ejercicio con ese nombre. Intenta otro."
-                    SINO → ROMPER_BUCLE
-                FIN MIENTRAS
-                reps ← _input_int("Repeticiones: ", minimo=1, maximo=100)
-                series ← _input_int("Series: ", minimo=1, maximo=100)
-                INTENTAR: crear_ejercicio(nombre, reps, series)
-                CAPTURAR_EXCEPCIÓN e: IMPRIMIR "[Error] " + e.mensaje
-
-            SINO SI op = "2":
-                listar_ejercicios()
-
+                    SI _buscar_ejercicio_catalogo(nombre) ≠ NULO → IMPRIMIR "Ya existe..."; CONTINUAR
+                    ROMPER
+                FIN
+                reps ← _input_int("Repeticiones: ", 1, 100)
+                series ← _input_int("Series: ", 1, 100)
+                INTENTA: crear_ejercicio(nombre, reps, series)
+                CAPTURA ValueError e: IMPRIMIR "[Error] " + e.mensaje
+            SINO SI op = "2": listar_ejercicios()
             SINO SI op = "3":
                 nombre ← _input_no_vacio("Nombre del ejercicio a editar: ")
                 ejercicio ← _buscar_ejercicio_catalogo(nombre)
                 SI ejercicio = NULO → IMPRIMIR "No existe ese ejercicio."; CONTINUAR
                 MIENTRAS VERDADERO:
-                    IMPRIMIR "\nEditando ejercicio: " + ejercicio.nombre
-                    IMPRIMIR "1) Cambiar nombre"
-                    IMPRIMIR "2) Cambiar repeticiones"
-                    IMPRIMIR "3) Cambiar series"
-                    IMPRIMIR "4) Volver"
-                    subop ← LEER_ENTRADA("Opción: ").quitar_espacios()
-
+                    IMPRIMIR submenú_editar_ejercicio(ejercicio.nombre)
+                    subop ← TRIM(LEER("Opción: "))
                     SI subop = "1":
                         nuevo ← _input_no_vacio("Nuevo nombre: ")
-                        SI _buscar_ejercicio_catalogo(nuevo) ≠ NULO → IMPRIMIR "Ya existe un ejercicio con ese nombre."; CONTINUAR
-                        old_key ← _norm(ejercicio.nombre)
-                        ejercicio.nombre ← nuevo.quitar_espacios()
-                        idx_ejercicios.eliminar(old_key)
-                        idx_ejercicios[_norm(ejercicio.nombre)] ← ejercicio
-                        IMPRIMIR "Nombre actualizado."
+                        SI _buscar_ejercicio_catalogo(nuevo) ≠ NULO → IMPRIMIR "Ya existe..."; CONTINUAR
+                        old_key ← Utilidades.normalizar(ejercicio.nombre)
+                        INTENTA:
+                            ejercicio.cambiar_nombre(nuevo)
+                            ELIMINAR idx_ejercicios[old_key]
+                            idx_ejercicios[Utilidades.normalizar(ejercicio.nombre)] ← ejercicio
+                            IMPRIMIR "Nombre actualizado."
+                        CAPTURA ValueError e: IMPRIMIR "[Error] " + e.mensaje
                     SINO SI subop = "2":
-                        ejercicio.repeticiones ← _input_int("Nuevas repeticiones: ", minimo=1, maximo=100)
-                        IMPRIMIR "Repeticiones actualizadas."
+                        INTENTA:
+                            nuevas_reps ← _input_int("Nuevas repeticiones: ", 1, 100)
+                            ejercicio.actualizar(repeticiones=nuevas_reps)
+                            IMPRIMIR "Repeticiones actualizadas."
+                        CAPTURA ValueError e: IMPRIMIR "[Error] " + e.mensaje
                     SINO SI subop = "3":
-                        ejercicio.series ← _input_int("Nuevas series: ", minimo=1, maximo=100)
-                        IMPRIMIR "Series actualizadas."
-                    SINO SI subop = "4":
-                        ROMPER_BUCLE
-                    SINO:
-                        IMPRIMIR "Opción no válida."
-                FIN MIENTRAS
-
+                        INTENTA:
+                            nuevas_series ← _input_int("Nuevas series: ", 1, 100)
+                            ejercicio.actualizar(series=nuevas_series)
+                            IMPRIMIR "Series actualizadas."
+                        CAPTURA ValueError e: IMPRIMIR "[Error] " + e.mensaje
+                    SINO SI subop = "4": ROMPER
+                    SINO: IMPRIMIR "Opción no válida."
+                FIN
             SINO SI op = "4":
                 nombre ← _input_no_vacio("Nombre a eliminar: ")
-                INTENTAR: eliminar_ejercicio(nombre); IMPRIMIR "Ejercicio eliminado del catálogo."
-                CAPTURAR_EXCEPCIÓN e: IMPRIMIR "[Error] " + e.mensaje
-
-            SINO SI op = "5":
-                RETORNAR
-            SINO:
-                IMPRIMIR "Opción no válida."
-        FIN MIENTRAS
-    FIN MÉTODO
+                INTENTA:
+                    eliminar_ejercicio(nombre)
+                    IMPRIMIR "Ejercicio eliminado del catálogo."
+                CAPTURA ValueError e:
+                    IMPRIMIR "[Error] " + e.mensaje
+            SINO SI op = "5": RETORNAR
+            SINO: IMPRIMIR "Opción no válida."
+        FIN
+    FIN
 
     MÉTODO menu_rutinas() → NADA:
         MIENTRAS VERDADERO:
-            IMPRIMIR "\n--- Rutinas ---"
-            IMPRIMIR "1) Crear rutina (seleccionando ejercicios del catálogo)"
-            IMPRIMIR "2) Listar rutinas"
-            IMPRIMIR "3) Editar rutina"
-            IMPRIMIR "4) Volver"
-            op ← LEER_ENTRADA("Opción: ").quitar_espacios()
-
+            IMPRIMIR opciones_rutinas
+            op ← TRIM(LEER("Opción: "))
             SI op = "1":
-                SI ejercicios_catalogo.vacío() → IMPRIMIR "Primero crea ejercicios en el catálogo."; CONTINUAR
+                SI TAM(ejercicios_catalogo) = 0 → IMPRIMIR "Primero crea ejercicios..."; CONTINUAR
                 MIENTRAS VERDADERO:
                     nombre ← _input_no_vacio("Nombre de la rutina: ")
-                    SI _buscar_rutina(nombre) ≠ NULO → IMPRIMIR "Ya existe una rutina con ese nombre. Intenta otro."
-                    SINO → ROMPER_BUCLE
-                FIN MIENTRAS
+                    SI _buscar_rutina(nombre) ≠ NULO → IMPRIMIR "Ya existe..."; CONTINUAR
+                    ROMPER
+                FIN
                 desc ← _input_no_vacio("Descripción: ")
                 IMPRIMIR "\nEjercicios disponibles (separa por coma):"
                 listar_ejercicios()
                 MIENTRAS VERDADERO:
-                    sel ← LEER_ENTRADA("Nombres a incluir (separados por coma): ").quitar_espacios()
-                    nombres ← [ n.quitar_espacios() PARA n EN split_por_coma(sel) SI n.quitar_espacios() ≠ "" ]
-                    SI nombres.vacío() → IMPRIMIR "Debes seleccionar al menos un ejercicio."; CONTINUAR
-                    INTENTAR: crear_rutina(nombre, desc, nombres); IMPRIMIR "Rutina creada."; ROMPER_BUCLE
-                    CAPTURAR_EXCEPCIÓN e: IMPRIMIR "[Error] " + e.mensaje
-                FIN MIENTRAS
-
+                    sel ← TRIM(LEER("Nombres a incluir (separados por coma): "))
+                    tmp ← SPLIT(sel, ",")
+                    nombres ← []
+                    i ← 0
+                    MIENTRAS i < TAM(tmp):
+                        n ← TRIM(tmp[i])
+                        SI n ≠ "" → AÑADIR n A nombres
+                        i ← i + 1
+                    FIN
+                    SI TAM(nombres) = 0 → IMPRIMIR "Debes seleccionar al menos un ejercicio."; CONTINUAR
+                    INTENTA:
+                        crear_rutina(nombre, desc, nombres)
+                        IMPRIMIR "Rutina creada."
+                        ROMPER      // vuelve al menú de rutinas
+                    CAPTURA ValueError e:
+                        IMPRIMIR "[Error] " + e.mensaje   // permanece en el sub-bloque de creación
+                FIN
             SINO SI op = "2":
                 listar_rutinas()
-
             SINO SI op = "3":
                 nombre ← _input_no_vacio("Nombre de la rutina a editar: ")
                 r ← _buscar_rutina(nombre)
                 SI r = NULO → IMPRIMIR "No existe esa rutina."; CONTINUAR
                 submenu_editar_rutina(r)
-
-            SINO SI op = "4":
-                RETORNAR
-            SINO:
-                IMPRIMIR "Opción no válida."
-        FIN MIENTRAS
-    FIN MÉTODO
+            SINO SI op = "4": RETORNAR
+            SINO: IMPRIMIR "Opción no válida."
+        FIN
+    FIN
 
     MÉTODO submenu_editar_rutina(r: Rutina) → NADA:
         MIENTRAS VERDADERO:
-            IMPRIMIR "\n>>> Editando: " + r.nombre
-            IMPRIMIR "1) Agregar ejercicio (del catálogo)"
-            IMPRIMIR "2) Eliminar ejercicio"
-            IMPRIMIR "3) Actualizar reps/series de un ejercicio"
-            IMPRIMIR "4) Modificar nombre/descr."
-            IMPRIMIR "5) Ver duración total"
-            IMPRIMIR "6) Listar ejercicios"
-            IMPRIMIR "7) Volver"
-            op ← LEER_ENTRADA("Opción: ").quitar_espacios()
-
+            IMPRIMIR cabecera_edición(r.nombre)
+            op ← TRIM(LEER("Opción: "))
             SI op = "1":
-                SI ejercicios_catalogo.vacío() → IMPRIMIR "Catálogo vacío. Crea ejercicios primero."; CONTINUAR
+                SI TAM(ejercicios_catalogo) = 0 → IMPRIMIR "Catálogo vacío..."; CONTINUAR
                 listar_ejercicios()
                 nombre ← _input_no_vacio("Nombre del ejercicio a agregar: ")
-                INTENTAR: rutina_agregar_ejercicio(r.nombre, nombre); IMPRIMIR "Ejercicio agregado a la rutina."
-                CAPTURAR_EXCEPCIÓN e: IMPRIMIR "[Error] " + e.mensaje
-
+                INTENTA:
+                    rutina_agregar_ejercicio(r.nombre, nombre)
+                    IMPRIMIR "Ejercicio agregado a la rutina."
+                CAPTURA ValueError e:
+                    IMPRIMIR "[Error] " + e.mensaje   // NO reintenta automáticamente; vuelve al submenú
             SINO SI op = "2":
                 nombre ← _input_no_vacio("Nombre del ejercicio a eliminar: ")
-                INTENTAR: rutina_eliminar_ejercicio(r.nombre, nombre); IMPRIMIR "Ejercicio eliminado de la rutina."
-                CAPTURAR_EXCEPCIÓN e: IMPRIMIR "[Error] " + e.mensaje
-
+                INTENTA: rutina_eliminar_ejercicio(r.nombre, nombre); IMPRIMIR "Ejercicio eliminado de la rutina."
+                CAPTURA ValueError e: IMPRIMIR "[Error] " + e.mensaje
             SINO SI op = "3":
                 nombre ← _input_no_vacio("Ejercicio a actualizar: ")
-                rep_txt ← LEER_ENTRADA("Nuevas repeticiones (enter=mantener): ")
-                ser_txt ← LEER_ENTRADA("Nuevas series (enter=mantener): ")
-                rep ← SI rep_txt = "" ENTONCES NULO SINO ENTERO(rep_txt)
-                ser ← SI ser_txt = "" ENTONCES NULO SINO ENTERO(ser_txt)
-                INTENTAR: rutina_actualizar_ejercicio(r.nombre, nombre, repeticiones=rep, series=ser); IMPRIMIR "Ejercicio actualizado."
-                CAPTURAR_EXCEPCIÓN e: IMPRIMIR "[Error] " + e.mensaje
-
+                rep_txt ← TRIM(LEER("Nuevas repeticiones (enter para mantener): "))
+                ser_txt ← TRIM(LEER("Nuevas series (enter para mantener): "))
+                rep ← NULO; ser ← NULO
+                SI rep_txt ≠ "" → rep ← ENTERO(rep_txt)
+                SI ser_txt ≠ "" → ser ← ENTERO(ser_txt)
+                INTENTA: rutina_actualizar_ejercicio(r.nombre, nombre, rep, ser); IMPRIMIR "Ejercicio actualizado."
+                CAPTURA ValueError e: IMPRIMIR "[Error] " + e.mensaje
             SINO SI op = "4":
-                nuevo ← LEER_ENTRADA("Nuevo nombre (enter=mantener): ").quitar_espacios()
-                desc ← LEER_ENTRADA("Nueva descripción (enter=mantener): ").quitar_espacios()
-                INTENTAR:
+                nuevo ← TRIM(LEER("Nuevo nombre (enter=mantener): "))
+                desc ← TRIM(LEER("Nueva descripción (enter=mantener): "))
+                INTENTA:
                     editar_rutina(r.nombre,
-                                  nuevo_nombre = (SI nuevo = "" ENTONCES NULO SINO nuevo),
-                                  nueva_desc   = (SI desc  = "" ENTONCES NULO SINO desc))
+                                  nuevo_nombre = (NULO SI nuevo = "" SINO nuevo),
+                                  nueva_desc   = (NULO SI desc = "" SINO desc))
                     IMPRIMIR "Datos actualizados."
-                CAPTURAR_EXCEPCIÓN e: IMPRIMIR "[Error] " + e.mensaje
-
+                CAPTURA ValueError e:
+                    IMPRIMIR "[Error] " + e.mensaje
             SINO SI op = "5":
-                IMPRIMIR "Duración total: " + minutos_a_texto(r.duracion_total_min())
-
+                IMPRIMIR "Duración total: " + Utilidades.minutos_a_texto(r.duracion_total_min())
             SINO SI op = "6":
-                SI r.ejercicios.vacío() → IMPRIMIR "(Sin ejercicios)"
+                SI TAM(r.ejercicios) = 0 → IMPRIMIR "(Sin ejercicios)"
                 SINO:
-                    PARA CADA ej EN r.ejercicios: IMPRIMIR "  • " + ej.__str__()
-                FIN SI
-
-            SINO SI op = "7":
-                RETORNAR
-            SINO:
-                IMPRIMIR "Opción no válida."
-        FIN MIENTRAS
-    FIN MÉTODO
+                    i ← 0
+                    MIENTRAS i < TAM(r.ejercicios):
+                        IMPRIMIR "  • " + r.ejercicios[i].__str__()
+                        i ← i + 1
+                    FIN
+            SINO SI op = "7": RETORNAR
+            SINO: IMPRIMIR "Opción no válida."
+        FIN
+    FIN
 FIN CLASE
 
 ALGORITMO PRINCIPAL:
     SI __name__ = "__main__" ENTONCES:
-        sistema ← NUEVA SistemaGestion()
-        INTENTAR:
+        sistema ← NUEVO SistemaGestion()
+        INTENTA:
             sistema.menu()
-        CAPTURAR KeyboardInterrupt:
+        CAPTURA KeyboardInterrupt:
             IMPRIMIR "\n¡Hasta luego!"
     FIN SI
-FIN ALGORITMO
+FIN

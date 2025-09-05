@@ -2,34 +2,36 @@ CONSTANTE SEC_POR_REP ← 5
 CONSTANTE DESCANSO_ENTRE_SERIES ← 30
 
 FUNCIÓN minutos_a_texto(mins: REAL) → CADENA:
-    total ← entero(redondear(mins * 60))
-    (m, s) ← divmod(total, 60)
+    total ← ENTERO(REDONDEAR(mins * 60))
+    (m, s) ← DIVMOD(total, 60)
     DEVOLVER f"{m} min {s} s"
 FIN
 
 FUNCIÓN _norm(s: CADENA) → CADENA:
-    DEVOLVER quitar_espacios_extremos(s).minusculas()
+    DEVOLVER TRIM(s).MINUSCULAS()
 FIN
+
+// ==================== EJERCICIO (dict inmutable) ====================
 
 FUNCIÓN mk_ejercicio(nombre, repeticiones, series, sec_por_rep=SEC_POR_REP, descanso_entre_series=DESCANSO_ENTRE_SERIES) → Dict:
     e ← {
-        "nombre": quitar_espacios_extremos(nombre),
-        "repeticiones": entero(repeticiones),
-        "series": entero(series),
-        "sec_por_rep": entero(sec_por_rep),
-        "descanso_entre_series": entero(descanso_entre_series)
+        "nombre": TRIM(nombre),
+        "repeticiones": ENTERO(repeticiones),
+        "series": ENTERO(series),
+        "sec_por_rep": ENTERO(sec_por_rep),
+        "descanso_entre_series": ENTERO(descanso_entre_series)
     }
     validar_ejercicio(e)
     DEVOLVER e
 FIN
 
 PROCEDIMIENTO validar_ejercicio(e: Dict):
-    SI e["nombre"] = "" → ERROR ValueError("El nombre del ejercicio no puede estar vacío.")
-    SI e["repeticiones"] ≤ 0 → ERROR ValueError("Las repeticiones deben ser mayores a 0.")
-    SI e["repeticiones"] > 100 → ERROR ValueError("Las repeticiones no pueden ser mayores a 100.")
-    SI e["series"] ≤ 0 → ERROR ValueError("Las series deben ser mayores a 0.")
-    SI e["series"] > 100 → ERROR ValueError("Las series no pueden ser mayores a 100.")
-    SI e["sec_por_rep"] ≤ 0 O e["descanso_entre_series"] < 0 → ERROR ValueError("Tiempos inválidos para el ejercicio.")
+    SI e["nombre"] = "" → ERROR "El nombre del ejercicio no puede estar vacío."
+    SI e["repeticiones"] ≤ 0 → ERROR "Las repeticiones deben ser mayores a 0."
+    SI e["repeticiones"] > 100 → ERROR "Las repeticiones no pueden ser mayores a 100."
+    SI e["series"] ≤ 0 → ERROR "Las series deben ser mayores a 0."
+    SI e["series"] > 100 → ERROR "Las series no pueden ser mayores a 100."
+    SI e["sec_por_rep"] ≤ 0 O e["descanso_entre_series"] < 0 → ERROR "Tiempos inválidos para el ejercicio."
 FIN
 
 FUNCIÓN duracion_ejercicio_min(e: Dict) → REAL:
@@ -39,135 +41,127 @@ FUNCIÓN duracion_ejercicio_min(e: Dict) → REAL:
 FIN
 
 FUNCIÓN str_ejercicio(e: Dict) → CADENA:
-    DEVOLVER f'{e["nombre"]} | reps: {e["repeticiones"]} | series: {e["series"]} | estimado: ' +
-            minutos_a_texto(duracion_ejercicio_min(e))
+    DEVOLVER e["nombre"] + " | reps: " + STR(e["repeticiones"]) + " | series: " +
+            STR(e["series"]) + " | estimado: " + minutos_a_texto(duracion_ejercicio_min(e))
 FIN
 
 FUNCIÓN actualizar_ejercicio(e: Dict, rep: ENTERO? = NULO, ser: ENTERO? = NULO) → Dict:
-    nuevo ← copia_shallow(e)
+    nuevo ← COPIA_SHALLOW(e)
     SI rep ≠ NULO:
-        SI rep ≤ 0 → ERROR ValueError("Las repeticiones deben ser mayores a 0.")
+        SI rep ≤ 0 → ERROR "Las repeticiones deben ser mayores a 0."
         nuevo["repeticiones"] ← rep
     SI ser ≠ NULO:
-        SI ser ≤ 0 → ERROR ValueError("Las series deben ser mayores a 0.")
+        SI ser ≤ 0 → ERROR "Las series deben ser mayores a 0."
         nuevo["series"] ← ser
     validar_ejercicio(nuevo)
     DEVOLVER nuevo
 FIN
 
+// ==================== RUTINA (dict inmutable) ====================
+
 FUNCIÓN mk_rutina(nombre: CADENA, descripcion: CADENA, ejercicios: LISTA[Dict]) → Dict:
-    r ← {
-        "nombre": quitar_espacios_extremos(nombre),
-        "descripcion": quitar_espacios_extremos(descripcion),
-        "ejercicios": lista_copia(ejercicios)
-    }
+    r ← {"nombre": TRIM(nombre), "descripcion": TRIM(descripcion), "ejercicios": LISTA_COPIA(ejercicios)}
     validar_rutina(r)
     DEVOLVER r
 FIN
 
 PROCEDIMIENTO validar_rutina(r: Dict):
-    SI r["nombre"] = "" → ERROR ValueError("El nombre de la rutina no puede estar vacío.")
-    SI r["descripcion"] = "" → ERROR ValueError("La descripción de la rutina no puede estar vacía.")
-    SI r["ejercicios"].vacía() → ERROR ValueError("Una rutina debe tener al menos un ejercicio.")
-    nombres ← MAPEA(λej: _norm(ej["nombre"]), r["ejercicios"])
-
-    // reduce para detectar duplicados:
+    SI r["nombre"] = "" → ERROR "El nombre de la rutina no puede estar vacío."
+    SI r["descripcion"] = "" → ERROR "La descripción de la rutina no puede estar vacía."
+    SI VACIA(r["ejercicios"]) → ERROR "Una rutina debe tener al menos un ejercicio."
+    nombres ← MAP(λej → _norm(ej["nombre"]), r["ejercicios"])
+    // detectar duplicados con reduce:
     FUNCIÓN acum_dups((vistos: CONJ, dup: BOOL), nom: CADENA) → (CONJ, BOOL):
         DEVOLVER (vistos ∪ {nom}, dup O (nom ∈ vistos))
     FIN
-
     (_, hay_dup) ← REDUCIR(acum_dups, nombres, (∅, FALSO))
-    SI hay_dup → ERROR ValueError("Hay ejercicios duplicados por nombre dentro de la rutina.")
+    SI hay_dup → ERROR "Hay ejercicios duplicados por nombre dentro de la rutina."
 FIN
 
 FUNCIÓN rutina_agregar_ejercicio(r: Dict, e: Dict) → Dict:
     key ← _norm(e["nombre"])
-    existe ← REDUCIR(λacc, ej: acc O (_norm(ej["nombre"]) = key), r["ejercicios"], FALSO)
-    SI existe → ERROR ValueError(f"Ya existe un ejercicio '{e['nombre']}' en la rutina.")
-    nueva_lista ← r["ejercicios"] + [e]
-    DEVOLVER mk_rutina(r["nombre"], r["descripcion"], nueva_lista)
+    existe ← REDUCIR(λacc, ej → acc O (_norm(ej["nombre"]) = key), r["ejercicios"], FALSO)
+    SI existe → ERROR "Ya existe un ejercicio '" + e["nombre"] + "' en la rutina."
+    DEVOLVER mk_rutina(r["nombre"], r["descripcion"], r["ejercicios"] + [e])
 FIN
 
 FUNCIÓN rutina_eliminar_ejercicio(r: Dict, nombre_ejercicio: CADENA) → Dict:
     key ← _norm(nombre_ejercicio)
-    nueva ← FILTRAR(λej: _norm(ej["nombre"]) ≠ key, r["ejercicios"])
-    SI tamaño(nueva) = tamaño(r["ejercicios"]) → ERROR ValueError("No se encontró el ejercicio para eliminar.")
-    SI nueva.vacía() → ERROR ValueError("La rutina no puede quedarse vacía; agrega otro ejercicio o cancela la eliminación.")
+    nueva ← FILTRAR(λej → _norm(ej["nombre"]) ≠ key, r["ejercicios"])
+    SI TAM(nueva) = TAM(r["ejercicios"]) → ERROR "No se encontró el ejercicio para eliminar."
+    SI VACIA(nueva) → ERROR "La rutina no puede quedarse vacía; agrega otro ejercicio o cancela la eliminación."
     DEVOLVER mk_rutina(r["nombre"], r["descripcion"], nueva)
 FIN
 
 FUNCIÓN rutina_buscar_ejercicio(r: Dict, nombre_ejercicio: CADENA) → Dict:
     key ← _norm(nombre_ejercicio)
-
-    // búsqueda recursiva interna
     FUNCIÓN go(lst: LISTA[Dict]) → Dict:
-        SI lst.vacía() → ERROR ValueError("Ejercicio no encontrado en la rutina.")
-        (cabeza, resto) ← (lst[0], lst[1..])
+        SI VACIA(lst) → ERROR "Ejercicio no encontrado en la rutina."
+        cabeza ← lst[0]; resto ← SUBLISTA(lst, 1, FIN)
         SI _norm(cabeza["nombre"]) = key → DEVOLVER cabeza
-        SINO → DEVOLVER go(resto)
+        DEVOLVER go(resto)
     FIN
-
     DEVOLVER go(r["ejercicios"])
 FIN
 
 FUNCIÓN rutina_actualizar_ejercicio(r: Dict, nombre_ejercicio: CADENA, rep: ENTERO?=NULO, ser: ENTERO?=NULO) → Dict:
     key ← _norm(nombre_ejercicio)
-
-    // map para reemplazar target
     FUNCIÓN rep_o_mismo(ej: Dict) → Dict:
         SI _norm(ej["nombre"]) = key → DEVOLVER actualizar_ejercicio(ej, rep, ser)
-        SINO → DEVOLVER ej
+        DEVOLVER ej
     FIN
-
-    nueva ← MAPEA(rep_o_mismo, r["ejercicios"])
-
-    // verificar existencia en original con reduce
-    igual ← REDUCIR(λacc, ej: acc Y (_norm(ej["nombre"]) ≠ key), r["ejercicios"], VERDADERO)
-    SI igual → ERROR ValueError("Ejercicio no encontrado en la rutina.") // no hubo coincidencia
+    nueva ← MAP(rep_o_mismo, r["ejercicios"])
+    // Verificar que sí existía en la lista original:
+    igual ← REDUCIR(λacc, ej → acc Y (_norm(ej["nombre"]) ≠ key), r["ejercicios"], VERDADERO)
+    SI igual → ERROR "Ejercicio no encontrado en la rutina."
     DEVOLVER mk_rutina(r["nombre"], r["descripcion"], nueva)
 FIN
 
 FUNCIÓN rutina_duracion_total_min(r: Dict) → REAL:
-    DEVOLVER REDUCIR(λacc, ej: acc + duracion_ejercicio_min(ej), r["ejercicios"], 0.0)
+    DEVOLVER REDUCIR(λacc, ej → acc + duracion_ejercicio_min(ej), r["ejercicios"], 0.0)
 FIN
 
 FUNCIÓN str_rutina(r: Dict) → CADENA:
     DEVOLVER "Rutina: " + r["nombre"] + "\n" +
              "Descripción: " + r["descripcion"] + "\n" +
              "Total: " + minutos_a_texto(rutina_duracion_total_min(r)) + "\n" +
-             "Ejercicios: " + tamaño(r["ejercicios"])
+             "Ejercicios: " + STR(TAM(r["ejercicios"]))
 FIN
 
 FUNCIÓN rutina_actualizar_datos(r: Dict, nombre: CADENA?=NULO, descripcion: CADENA?=NULO) → Dict:
-    nuevo_nombre ← SI nombre = NULO ENTONCES r["nombre"] SINO quitar_espacios_extremos(nombre)
-    nueva_desc ← SI descripcion = NULO ENTONCES r["descripcion"] SINO quitar_espacios_extremos(descripcion)
-    SI nombre ≠ NULO Y nuevo_nombre = "" → ERROR ValueError("El nombre de la rutina no puede quedar vacío.")
-    SI descripcion ≠ NULO Y nueva_desc = "" → ERROR ValueError("La descripción de la rutina no puede quedar vacía.")
+    nuevo_nombre ← SI nombre = NULO ENTONCES r["nombre"] SINO TRIM(nombre)
+    nueva_desc   ← SI descripcion = NULO ENTONCES r["descripcion"] SINO TRIM(descripcion)
+    SI (nombre ≠ NULO Y nuevo_nombre = "") → ERROR "El nombre de la rutina no puede quedar vacío."
+    SI (descripcion ≠ NULO Y nueva_desc = "") → ERROR "La descripción de la rutina no puede quedar vacía."
     DEVOLVER mk_rutina(nuevo_nombre, nueva_desc, r["ejercicios"])
 FIN
 
+// ==================== USUARIO (dict inmutable) ====================
+
 FUNCIÓN mk_usuario(nombre: CADENA, edad: ENTERO) → Dict:
-    u ← {"nombre": quitar_espacios_extremos(nombre), "edad": entero(edad), "rutinas": []}
+    u ← {"nombre": TRIM(nombre), "edad": ENTERO(edad), "rutinas": []}
     validar_usuario(u)
     DEVOLVER u
 FIN
 
 PROCEDIMIENTO validar_usuario(u: Dict):
-    SI u["nombre"] = "" → ERROR ValueError("El nombre del usuario no puede estar vacío.")
-    SI u["edad"] < 16 → ERROR ValueError("La edad debe ser un número mayor o igual a 16 años.")
-    SI u["edad"] > 100 → ERROR ValueError("La edad debe ser menor o igual a 100 años.")
+    SI u["nombre"] = "" → ERROR "El nombre del usuario no puede estar vacío."
+    SI u["edad"] < 16 → ERROR "La edad debe ser un número mayor o igual a 16 años."
+    SI u["edad"] > 100 → ERROR "La edad debe ser menor o igual a 100 años."
 FIN
 
 FUNCIÓN usuario_asignar_rutina(u: Dict, r: Dict) → Dict:
     key ← _norm(r["nombre"])
-    ya ← REDUCIR(λacc, rr: acc O (_norm(rr["nombre"]) = key), u["rutinas"], FALSO)
-    SI ya → ERROR ValueError(f"El usuario ya tiene una rutina llamada '{r['nombre']}'.")
+    ya ← REDUCIR(λacc, rr → acc O (_norm(rr["nombre"]) = key), u["rutinas"], FALSO)
+    SI ya → ERROR "El usuario ya tiene una rutina llamada '" + r["nombre"] + "'."
     DEVOLVER {"nombre": u["nombre"], "edad": u["edad"], "rutinas": u["rutinas"] + [r]}
 FIN
 
 FUNCIÓN str_usuario(u: Dict) → CADENA:
-    DEVOLVER f"Usuario: {u['nombre']} | Edad: {u['edad']} | Rutinas: {tamaño(u['rutinas'])}"
+    DEVOLVER "Usuario: " + u["nombre"] + " | Edad: " + STR(u["edad"]) + " | Rutinas: " + STR(TAM(u["rutinas"]))
 FIN
+
+// ==================== ESTADO DEL SISTEMA ====================
 
 FUNCIÓN estado_vacio() → Dict:
     DEVOLVER {
@@ -180,25 +174,27 @@ FUNCIÓN estado_vacio() → Dict:
     }
 FIN
 
+// ---------- Helpers de I/O (recursivos) ----------
+
 FUNCIÓN _input_no_vacio(msg: CADENA) → CADENA:
-    txt ← quitar_espacios_extremos(LEER_ENTRADA(msg))
+    txt ← TRIM(LEER(msg))
     SI txt ≠ "" → DEVOLVER txt
     _print("El valor no puede estar vacío.")
     DEVOLVER _input_no_vacio(msg)
 FIN
 
 FUNCIÓN _input_int(msg: CADENA, minimo: ENTERO?=NULO, maximo: ENTERO?=NULO) → ENTERO:
-    raw ← quitar_espacios_extremos(LEER_ENTRADA(msg))
-    INTENTAR:
-        val ← entero(raw)
+    raw ← TRIM(LEER(msg))
+    INTENTA:
+        val ← ENTERO(raw)
         SI minimo ≠ NULO Y val < minimo:
-            _print(f"El valor debe ser mayor o igual a {minimo}.")
+            _print("El valor debe ser mayor o igual a " + STR(minimo) + ".")
             DEVOLVER _input_int(msg, minimo, maximo)
         SI maximo ≠ NULO Y val > maximo:
-            _print(f"El valor debe ser menor o igual a {maximo}.")
+            _print("El valor debe ser menor o igual a " + STR(maximo) + ".")
             DEVOLVER _input_int(msg, minimo, maximo)
         DEVOLVER val
-    CAPTURAR ValueError:
+    CAPTURA:
         _print("Ingresa un número entero válido.")
         DEVOLVER _input_int(msg, minimo, maximo)
 FIN
@@ -206,6 +202,20 @@ FIN
 PROCEDIMIENTO _print(msg: CADENA):
     IMPRIMIR msg
 FIN
+
+// NUEVO: reintento hasta que TODOS los ejercicios existan y no haya repetidos
+FUNCIÓN _pedir_nombres_validos_ejercicios(st: Dict) → LISTA[CADENA]:
+    sel ← _input_no_vacio("Nombres a incluir (separados por coma): ")
+    nombres ← FILTRAR(λx → x ≠ "", MAP(λs → TRIM(s), SPLIT_COMA(sel)))
+    INTENTA:
+        _ ← obtener_ejercicios_por_nombres(st, nombres)   // solo valida
+        DEVOLVER nombres
+    CAPTURA ValueError e:
+        _print("[Error] " + e.mensaje)
+        DEVOLVER _pedir_nombres_validos_ejercicios(st)
+FIN
+
+// ==================== BÚSQUEDA EN ÍNDICES ====================
 
 FUNCIÓN buscar_usuario(st: Dict, nombre: CADENA) → Dict|NULO:
     DEVOLVER st["idx_usuarios"].get(_norm(nombre))
@@ -219,69 +229,59 @@ FUNCIÓN buscar_rutina(st: Dict, nombre: CADENA) → Dict|NULO:
     DEVOLVER st["idx_rutinas"].get(_norm(nombre))
 FIN
 
+// ==================== OPERACIONES DE DOMINIO (devuelven nuevo estado) ====================
+
 FUNCIÓN agregar_usuario(st: Dict, nombre: CADENA, edad: ENTERO) → Dict:
     key ← _norm(nombre)
-    SI key EN st["idx_usuarios"] → ERROR ValueError("Ya existe un usuario con ese nombre.")
+    SI key EN st["idx_usuarios"] → ERROR "Ya existe un usuario con ese nombre."
     u ← mk_usuario(nombre, edad)
-    nuevos_idx ← copia_shallow(st["idx_usuarios"]); nuevos_idx[key] ← u
-    DEVOLVER st ▷ con {
+    nuevos_idx ← COPIA_SHALLOW(st["idx_usuarios"]); nuevos_idx[key] ← u
+    DEVOLVER st CON {
         "usuarios": st["usuarios"] + [u],
         "idx_usuarios": nuevos_idx
     }
 FIN
 
 PROCEDIMIENTO listar_usuarios(st: Dict):
-    SI st["usuarios"].vacía():
-        _print("No hay usuarios.")
-        RETORNAR
-    // Recursión:
-    FUNCIÓN go(lst: LISTA[Dict]):
-        SI lst.vacía(): RETORNAR
-        cabeza ← lst[0]; resto ← lst[1..]
-        _print(str_usuario(cabeza))
-        go(resto)
+    SI VACIA(st["usuarios"]) → _print("No hay usuarios."); RETORNAR
+    FUNCIÓN go(lst):
+        SI VACIA(lst) → RETORNAR
+        _print(str_usuario(lst[0]))
+        go(SUBLISTA(lst, 1, FIN))
     FIN
     go(st["usuarios"])
 FIN
 
 PROCEDIMIENTO mostrar_rutinas_de_usuario(st: Dict, nombre_usuario: CADENA):
     u ← buscar_usuario(st, nombre_usuario)
-    SI u = NULO:
-        _print("Usuario no encontrado.")
-    SINO SI u["rutinas"].vacía():
-        _print(f"{u['nombre']} no tiene rutinas asignadas.")
+    SI u = NULO → _print("Usuario no encontrado.")
+    SINO SI VACIA(u["rutinas"]) → _print(u["nombre"] + " no tiene rutinas asignadas.")
     SINO:
-        _print(f"Rutinas de {u['nombre']}:")
-        FUNCIÓN go(lst: LISTA[Dict]):
-            SI lst.vacía(): RETORNAR
-            cabeza ← lst[0]; resto ← lst[1..]
-            _print(f"  - {cabeza['nombre']}: {minutos_a_texto(rutina_duracion_total_min(cabeza))}")
-            go(resto)
+        _print("Rutinas de " + u["nombre"] + ":")
+        FUNCIÓN go(lst):
+            SI VACIA(lst) → RETORNAR
+            r ← lst[0]
+            _print("  - " + r["nombre"] + ": " + minutos_a_texto(rutina_duracion_total_min(r)))
+            go(SUBLISTA(lst, 1, FIN))
         FIN
         go(u["rutinas"])
 FIN
 
 FUNCIÓN crear_ejercicio(st: Dict, nombre: CADENA, rep: ENTERO, ser: ENTERO) → Dict:
     key ← _norm(nombre)
-    SI key EN st["idx_ejercicios"] → ERROR ValueError("Ya existe un ejercicio en el catálogo con ese nombre.")
+    SI key EN st["idx_ejercicios"] → ERROR "Ya existe un ejercicio en el catálogo con ese nombre."
     ej ← mk_ejercicio(nombre, rep, ser)
-    idx ← copia_shallow(st["idx_ejercicios"]); idx[key] ← ej
-    _print(f"Ejercicio creado. Duración estimada: {minutos_a_texto(duracion_ejercicio_min(ej))}")
-    DEVOLVER st ▷ con {
-        "ejercicios_catalogo": st["ejercicios_catalogo"] + [ej],
-        "idx_ejercicios": idx
-    }
+    idx ← COPIA_SHALLOW(st["idx_ejercicios"]); idx[key] ← ej
+    _print("Ejercicio creado. Duración estimada: " + minutos_a_texto(duracion_ejercicio_min(ej)))
+    DEVOLVER st CON {"ejercicios_catalogo": st["ejercicios_catalogo"] + [ej], "idx_ejercicios": idx}
 FIN
 
 PROCEDIMIENTO listar_ejercicios(st: Dict):
-    SI st["ejercicios_catalogo"].vacía():
-        _print("(Catálogo vacío)")
-        RETORNAR
-    FUNCIÓN go(lst: LISTA[Dict]):
-        SI lst.vacía(): RETORNAR
-        cabeza ← lst[0]; resto ← lst[1..]
-        _print("- " + str_ejercicio(cabeza))
-        go(resto)
+    SI VACIA(st["ejercicios_catalogo"]) → _print("(Catálogo vacío)"); RETORNAR
+    FUNCIÓN go(lst):
+        SI VACIA(lst) → RETORNAR
+        _print("- " + str_ejercicio(lst[0]))
+        go(SUBLISTA(lst, 1, FIN))
     FIN
     go(st["ejercicios_catalogo"])
 FIN
@@ -289,18 +289,15 @@ FIN
 FUNCIÓN eliminar_ejercicio(st: Dict, nombre: CADENA) → Dict:
     key ← _norm(nombre)
     ej ← st["idx_ejercicios"].get(key)
-    SI ej = NULO → ERROR ValueError("No se encontró el ejercicio para eliminar.")
-    nueva_lista ← FILTRAR(λe: e ≠ ej, st["ejercicios_catalogo"])
-
-    // quitar de rutinas, tolerando errores
+    SI ej = NULO → ERROR "No se encontró el ejercicio para eliminar."
+    nueva_lista ← FILTRAR(λe → e ≠ ej, st["ejercicios_catalogo"])
     FUNCIÓN quitar_en_rutina(r: Dict) → Dict:
-        INTENTAR: DEVOLVER rutina_eliminar_ejercicio(r, ej["nombre"])
-        CAPTURAR ValueError: DEVOLVER r
+        INTENTA: DEVOLVER rutina_eliminar_ejercicio(r, ej["nombre"])
+        CAPTURA: DEVOLVER r
     FIN
-    nuevas_rutinas ← MAPEA(quitar_en_rutina, st["rutinas"])
-
-    nuevo_idx ← copia_shallow(st["idx_ejercicios"]); eliminar_clave(nuevo_idx, key)
-    DEVOLVER st ▷ con {
+    nuevas_rutinas ← MAP(quitar_en_rutina, st["rutinas"])
+    nuevo_idx ← COPIA_SHALLOW(st["idx_ejercicios"]); ELIMINAR_CLAVE(nuevo_idx, key)
+    DEVOLVER st CON {
         "ejercicios_catalogo": nueva_lista,
         "rutinas": nuevas_rutinas,
         "idx_ejercicios": nuevo_idx
@@ -308,137 +305,128 @@ FUNCIÓN eliminar_ejercicio(st: Dict, nombre: CADENA) → Dict:
 FIN
 
 FUNCIÓN obtener_ejercicios_por_nombres(st: Dict, nombres: LISTA[CADENA]) → LISTA[Dict]:
-    // recursivo con control de duplicados
-    FUNCIÓN go(pend: LISTA[CADENA], vistos: CONJ, acc: LISTA[Dict]) → LISTA[Dict]:
-        SI pend.vacía(): DEVOLVER acc
+    FUNCIÓN go(pend, vistos: CONJ, acc: LISTA[Dict]) → LISTA[Dict]:
+        SI VACIA(pend) → DEVOLVER acc
         n ← pend[0]; key ← _norm(n)
-        SI key EN vistos → ERROR ValueError(f"Nombre de ejercicio repetido en la selección: '{n}'.")
+        SI key EN vistos → ERROR "Nombre de ejercicio repetido en la selección: '" + n + "'."
         ej ← st["idx_ejercicios"].get(key)
-        SI ej = NULO → ERROR ValueError(f"Ejercicio '{n}' no existe en el catálogo.")
-        DEVOLVER go(pend[1..], vistos ∪ {key}, acc + [ej])
+        SI ej = NULO → ERROR "Ejercicio '" + n + "' no existe en el catálogo."
+        DEVOLVER go(SUBLISTA(pend, 1, FIN), vistos ∪ {key}, acc + [ej])
     FIN
     DEVOLVER go(nombres, ∅, [])
 FIN
 
 FUNCIÓN crear_rutina(st: Dict, nombre: CADENA, descripcion: CADENA, nombres_ejercicios: LISTA[CADENA]) → Dict:
-    SI st["ejercicios_catalogo"].vacía() → ERROR ValueError("Primero crea ejercicios en el catálogo.")
-    SI nombres_ejercicios.vacía() → ERROR ValueError("Debes seleccionar al menos un ejercicio para la rutina.")
+    SI VACIA(st["ejercicios_catalogo"]) → ERROR "Primero crea ejercicios en el catálogo."
+    SI VACIA(nombres_ejercicios) → ERROR "Debes seleccionar al menos un ejercicio para la rutina."
     key ← _norm(nombre)
-    SI key EN st["idx_rutinas"] → ERROR ValueError("Ya existe una rutina con ese nombre.")
+    SI key EN st["idx_rutinas"] → ERROR "Ya existe una rutina con ese nombre."
     ejercicios ← obtener_ejercicios_por_nombres(st, nombres_ejercicios)
     r ← mk_rutina(nombre, descripcion, ejercicios)
-    idx ← copia_shallow(st["idx_rutinas"]); idx[key] ← r
-    DEVOLVER st ▷ con {"rutinas": st["rutinas"] + [r], "idx_rutinas": idx}
+    idx ← COPIA_SHALLOW(st["idx_rutinas"]); idx[key] ← r
+    DEVOLVER st CON {"rutinas": st["rutinas"] + [r], "idx_rutinas": idx}
 FIN
 
 PROCEDIMIENTO listar_rutinas(st: Dict):
-    SI st["rutinas"].vacía():
-        _print("No hay rutinas.")
-        RETORNAR
+    SI VACIA(st["rutinas"]) → _print("No hay rutinas."); RETORNAR
     PROCEDIMIENTO imprimir_rutina(r: Dict):
-        _print(repetir("-", 60))
+        _print(REPETIR("-", 60))
         _print(str_rutina(r))
-        FUNCIÓN go(lst: LISTA[Dict]):
-            SI lst.vacía(): RETORNAR
-            cabeza ← lst[0]; resto ← lst[1..]
-            _print("  • " + str_ejercicio(cabeza))
-            go(resto)
+        FUNCIÓN go(lst):
+            SI VACIA(lst) → RETORNAR
+            _print("  • " + str_ejercicio(lst[0]))
+            go(SUBLISTA(lst, 1, FIN))
         FIN
         go(r["ejercicios"])
     FIN
-    FUNCIÓN go(lst: LISTA[Dict]):
-        SI lst.vacía(): _print(repetir("-", 60)); RETORNAR
-        cabeza ← lst[0]; resto ← lst[1..]
-        imprimir_rutina(cabeza)
-        go(resto)
+    FUNCIÓN go(lst):
+        SI VACIA(lst) → _print(REPETIR("-", 60)); RETORNAR
+        imprimir_rutina(lst[0])
+        go(SUBLISTA(lst, 1, FIN))
     FIN
     go(st["rutinas"])
 FIN
 
 FUNCIÓN editar_rutina(st: Dict, nombre: CADENA, nuevo_nombre: CADENA?=NULO, nueva_desc: CADENA?=NULO) → Dict:
     r ← buscar_rutina(st, nombre)
-    SI r = NULO → ERROR ValueError("Rutina no encontrada.")
+    SI r = NULO → ERROR "Rutina no encontrada."
     old_key ← _norm(r["nombre"])
     r2 ← rutina_actualizar_datos(r, nuevo_nombre, nueva_desc)
     new_key ← _norm(r2["nombre"])
-    SI new_key ≠ old_key Y new_key EN st["idx_rutinas"] → ERROR ValueError("Ya existe otra rutina con ese nombre.")
-    nuevas_rutinas ← MAPEA(λx: SI x ES r ENTONCES r2 SINO x, st["rutinas"])
-    idx ← copia_shallow(st["idx_rutinas"])
-    SI new_key ≠ old_key: eliminar_clave(idx, old_key)
+    SI (new_key ≠ old_key) Y (new_key EN st["idx_rutinas"]) → ERROR "Ya existe otra rutina con ese nombre."
+    nuevas_rutinas ← MAP(λx → SI x ES r ENTONCES r2 SINO x, st["rutinas"])
+    idx ← COPIA_SHALLOW(st["idx_rutinas"])
+    SI new_key ≠ old_key → ELIMINAR_CLAVE(idx, old_key)
     idx[new_key] ← r2
-    DEVOLVER st ▷ con {"rutinas": nuevas_rutinas, "idx_rutinas": idx}
+    DEVOLVER st CON {"rutinas": nuevas_rutinas, "idx_rutinas": idx}
 FIN
 
 FUNCIÓN rutina_agregar_ejercicio_st(st: Dict, nombre_rutina: CADENA, nombre_ejercicio: CADENA) → Dict:
     r ← buscar_rutina(st, nombre_rutina)
-    SI r = NULO → ERROR ValueError("Rutina no encontrada.")
+    SI r = NULO → ERROR "Rutina no encontrada."
     ej ← buscar_ejercicio(st, nombre_ejercicio)
-    SI ej = NULO → ERROR ValueError("Ese ejercicio no existe en el catálogo.")
+    SI ej = NULO → ERROR "Ese ejercicio no existe en el catálogo."
     r2 ← rutina_agregar_ejercicio(r, ej)
-    nuevas ← MAPEA(λx: SI x ES r ENTONCES r2 SINO x, st["rutinas"])
-    idx ← copia_shallow(st["idx_rutinas"]); idx[_norm(r2["nombre"])] ← r2
-    DEVOLVER st ▷ con {"rutinas": nuevas, "idx_rutinas": idx}
+    nuevas ← MAP(λx → SI x ES r ENTONCES r2 SINO x, st["rutinas"])
+    idx ← COPIA_SHALLOW(st["idx_rutinas"]); idx[_norm(r2["nombre"])] ← r2
+    DEVOLVER st CON {"rutinas": nuevas, "idx_rutinas": idx}
 FIN
 
 FUNCIÓN rutina_eliminar_ejercicio_st(st: Dict, nombre_rutina: CADENA, nombre_ejercicio: CADENA) → Dict:
     r ← buscar_rutina(st, nombre_rutina)
-    SI r = NULO → ERROR ValueError("Rutina no encontrada.")
+    SI r = NULO → ERROR "Rutina no encontrada."
     r2 ← rutina_eliminar_ejercicio(r, nombre_ejercicio)
-    nuevas ← MAPEA(λx: SI x ES r ENTONCES r2 SINO x, st["rutinas"])
-    idx ← copia_shallow(st["idx_rutinas"]); idx[_norm(r2["nombre"])] ← r2
-    DEVOLVER st ▷ con {"rutinas": nuevas, "idx_rutinas": idx}
+    nuevas ← MAP(λx → SI x ES r ENTONCES r2 SINO x, st["rutinas"])
+    idx ← COPIA_SHALLOW(st["idx_rutinas"]); idx[_norm(r2["nombre"])] ← r2
+    DEVOLVER st CON {"rutinas": nuevas, "idx_rutinas": idx}
 FIN
 
 FUNCIÓN rutina_actualizar_ejercicio_st(st: Dict, nombre_rutina: CADENA, nombre_ejercicio: CADENA, rep: ENTERO?=NULO, ser: ENTERO?=NULO) → Dict:
     r ← buscar_rutina(st, nombre_rutina)
-    SI r = NULO → ERROR ValueError("Rutina no encontrada.")
+    SI r = NULO → ERROR "Rutina no encontrada."
     r2 ← rutina_actualizar_ejercicio(r, nombre_ejercicio, rep, ser)
-    nuevas ← MAPEA(λx: SI x ES r ENTONCES r2 SINO x, st["rutinas"])
-    idx ← copia_shallow(st["idx_rutinas"]); idx[_norm(r2["nombre"])] ← r2
-    DEVOLVER st ▷ con {"rutinas": nuevas, "idx_rutinas": idx}
+    nuevas ← MAP(λx → SI x ES r ENTONCES r2 SINO x, st["rutinas"])
+    idx ← COPIA_SHALLOW(st["idx_rutinas"]); idx[_norm(r2["nombre"])] ← r2
+    DEVOLVER st CON {"rutinas": nuevas, "idx_rutinas": idx}
 FIN
 
 FUNCIÓN asignar_rutina_a_usuario(st: Dict, nombre_usuario: CADENA, nombre_rutina: CADENA) → Dict:
     u ← buscar_usuario(st, nombre_usuario)
-    SI u = NULO → ERROR ValueError("Usuario no encontrado.")
+    SI u = NULO → ERROR "Usuario no encontrado."
     r ← buscar_rutina(st, nombre_rutina)
-    SI r = NULO → ERROR ValueError("Rutina no encontrada.")
+    SI r = NULO → ERROR "Rutina no encontrada."
     u2 ← usuario_asignar_rutina(u, r)
-    nuevos_usuarios ← MAPEA(λx: SI x ES u ENTONCES u2 SINO x, st["usuarios"])
-    idx ← copia_shallow(st["idx_usuarios"]); idx[_norm(u2["nombre"])] ← u2
-    DEVOLVER st ▷ con {"usuarios": nuevos_usuarios, "idx_usuarios": idx}
+    nuevos_usuarios ← MAP(λx → SI x ES u ENTONCES u2 SINO x, st["usuarios"])
+    idx ← COPIA_SHALLOW(st["idx_usuarios"]); idx[_norm(u2["nombre"])] ← u2
+    DEVOLVER st CON {"usuarios": nuevos_usuarios, "idx_usuarios": idx}
 FIN
 
 PROCEDIMIENTO reporte_por_usuario(st: Dict):
-    SI st["usuarios"].vacía():
-        _print("No hay usuarios.")
-        RETORNAR
+    SI VACIA(st["usuarios"]) → _print("No hay usuarios."); RETORNAR
     PROCEDIMIENTO imprimir_u(u: Dict):
-        _print(repetir("=", 60))
-        _print(f"Usuario: {u['nombre']} | Edad: {u['edad']}")
-        SI u["rutinas"].vacía():
-            _print("  (Sin rutinas asignadas)")
+        _print(REPETIR("=", 60))
+        _print("Usuario: " + u["nombre"] + " | Edad: " + STR(u["edad"]))
+        SI VACIA(u["rutinas"]) → _print("  (Sin rutinas asignadas)")
         SINO:
-            FUNCIÓN go(lst: LISTA[Dict]):
-                SI lst.vacía(): RETORNAR
-                cabeza ← lst[0]; resto ← lst[1..]
-                _print(f"  - {cabeza['nombre']}: {minutos_a_texto(rutina_duracion_total_min(cabeza))}")
-                go(resto)
+            FUNCIÓN go(lst):
+                SI VACIA(lst) → RETORNAR
+                r ← lst[0]
+                _print("  - " + r["nombre"] + ": " + minutos_a_texto(rutina_duracion_total_min(r)))
+                go(SUBLISTA(lst, 1, FIN))
             FIN
             go(u["rutinas"])
     FIN
-    FUNCIÓN go(lst: LISTA[Dict]):
-        SI lst.vacía():
-            _print(repetir("=", 60))
-            RETORNAR
-        cabeza ← lst[0]; resto ← lst[1..]
-        imprimir_u(cabeza)
-        go(resto)
+    FUNCIÓN go(lst):
+        SI VACIA(lst) → _print(REPETIR("=", 60)); RETORNAR
+        imprimir_u(lst[0])
+        go(SUBLISTA(lst, 1, FIN))
     FIN
     go(st["usuarios"])
 FIN
 
-FUNCIÓN menu_principal(st: Dict) → NADA:
+// ==================== MENÚS ====================
+
+FUNCIÓN menu_principal(st: Dict):
     _print("\n=== MENÚ PRINCIPAL ===")
     _print("1) Usuarios")
     _print("2) Ejercicios (catálogo)")
@@ -447,60 +435,44 @@ FUNCIÓN menu_principal(st: Dict) → NADA:
     _print("5) Mostrar rutinas de un usuario")
     _print("6) Reporte por usuario")
     _print("7) Salir")
-    op ← quitar_espacios_extremos(LEER_ENTRADA("Opción:"))
-
-    INTENTAR:
-        SI op = "1": DEVOLVER menu_usuarios(st)
-        SI op = "2": DEVOLVER menu_ejercicios(st)
-        SI op = "3": DEVOLVER menu_rutinas(st)
+    op ← TRIM(LEER("Opción: "))
+    INTENTA:
+        SI op = "1" → DEVOLVER menu_usuarios(st)
+        SI op = "2" → DEVOLVER menu_ejercicios(st)
+        SI op = "3" → DEVOLVER menu_rutinas(st)
         SI op = "4":
             u ← _pedir_usuario_nombre()
             _print("\nRutinas disponibles:")
             listar_rutinas(st)
             r_line ← _pedir_no_vacio("Rutinas (separadas por coma): ")
-            nombres_rutinas ← FILTRAR(λx: x ≠ "", MAPEA(λs: quitar_espacios_extremos(s), split_por_coma(r_line)))
+            nombres_rutinas ← FILTRAR(λx → x ≠ "", MAP(λs → TRIM(s), SPLIT_COMA(r_line)))
             errores ← []
-            // reduce que acumula (estado, errores) al asignar múltiples
             FUNCIÓN asignar_fold((state, errs), nombre_r: CADENA) → (Dict, LISTA[CADENA]):
-                INTENTAR:
-                    nuevo ← asignar_rutina_a_usuario(state, u, nombre_r)
-                    DEVOLVER (nuevo, errs)
-                CAPTURAR ValueError e:
-                    DEVOLVER (state, errs + [f"{nombre_r}: {e.mensaje}"])
+                INTENTA: DEVOLVER (asignar_rutina_a_usuario(state, u, nombre_r), errs)
+                CAPTURA ValueError e: DEVOLVER (state, errs + [nombre_r + ": " + e.mensaje])
             FIN
             (st2, errores) ← REDUCIR(asignar_fold, nombres_rutinas, (st, errores))
-            SI errores ≠ []:
+            SI NO VACIA(errores):
                 _print("Algunos errores al asignar rutinas:")
-                FUNCIÓN go_msgs(xs: LISTA[CADENA]):
-                    SI xs.vacía(): RETORNAR
-                    cabeza ← xs[0]; resto ← xs[1..]
-                    _print(f"  [Error] {cabeza}")
-                    go_msgs(resto)
+                PROCEDIMIENTO go_msgs(xs):
+                    SI VACIA(xs) → RETORNAR
+                    _print("  [Error] " + xs[0]); go_msgs(SUBLISTA(xs, 1, FIN))
                 FIN
                 go_msgs(errores)
                 DEVOLVER menu_principal(st2)
-            SINO:
-                _print("Rutinas asignadas.")
-                DEVOLVER menu_principal(st2)
-
+            _print("Rutinas asignadas.")
+            DEVOLVER menu_principal(st2)
         SI op = "5":
-            nombre ← quitar_espacios_extremos(LEER_ENTRADA("Usuario: "))
+            nombre ← TRIM(LEER("Usuario: "))
             mostrar_rutinas_de_usuario(st, nombre)
             DEVOLVER menu_principal(st)
-
         SI op = "6":
             reporte_por_usuario(st)
             DEVOLVER menu_principal(st)
-
-        SI op = "7":
-            _print("Hasta luego.")
-            DEVOLVER
-
-        // else
-        _print("Opción no válida.")
-        DEVOLVER menu_principal(st)
-    CAPTURAR ValueError e:
-        _print(f"[Error] {e.mensaje}")
+        SI op = "7": _print("Hasta luego."); DEVOLVER
+        _print("Opción no válida."); DEVOLVER menu_principal(st)
+    CAPTURA ValueError e:
+        _print("[Error] " + e.mensaje)
         DEVOLVER menu_principal(st)
 FIN
 
@@ -509,50 +481,10 @@ FUNCIÓN _pedir_no_vacio(msg: CADENA) → CADENA:
 FIN
 
 FUNCIÓN _pedir_usuario_nombre() → CADENA:
-    nombre ← quitar_espacios_extremos(LEER_ENTRADA("Usuario: "))
+    nombre ← TRIM(LEER("Usuario: "))
     SI nombre ≠ "" → DEVOLVER nombre
     _print("El nombre de usuario no puede estar vacío.")
     DEVOLVER _pedir_usuario_nombre()
-FIN
-
-FUNCIÓN menu_usuarios(st: Dict) → NADA:
-    _print("\n--- Usuarios ---")
-    _print("1) Agregar")
-    _print("2) Listar")
-    _print("3) Editar usuario")
-    _print("4) Volver")
-    op ← quitar_espacios_extremos(LEER_ENTRADA("Opción: "))
-
-    SI op = "1":
-        nombre ← _repetir_hasta(λn: buscar_usuario(st, n) = NULO,
-                                "Nombre: ",
-                                "Ya existe un usuario con ese nombre. Intenta otro.")
-        edad ← _input_int("Edad: ", 16, 100)
-        INTENTAR:
-            st2 ← agregar_usuario(st, nombre, edad)
-            _print("Usuario agregado.")
-            DEVOLVER menu_usuarios(st2)
-        CAPTURAR ValueError e:
-            _print(f"[Error] {e.mensaje}")
-            DEVOLVER menu_usuarios(st)
-
-    SI op = "2":
-        listar_usuarios(st)
-        DEVOLVER menu_usuarios(st)
-
-    SI op = "3":
-        nombre ← _input_no_vacio("Nombre del usuario a editar: ")
-        u ← buscar_usuario(st, nombre)
-        SI u = NULO:
-            _print("No existe ese usuario.")
-            DEVOLVER menu_usuarios(st)
-        DEVOLVER submenu_editar_usuario(st, u)
-
-    SI op = "4":
-        DEVOLVER menu_principal(st)
-
-    _print("Opción no válida.")
-    DEVOLVER menu_usuarios(st)
 FIN
 
 FUNCIÓN _repetir_hasta(pred_ok, prompt: CADENA, msg_dup: CADENA) → CADENA:
@@ -562,172 +494,145 @@ FUNCIÓN _repetir_hasta(pred_ok, prompt: CADENA, msg_dup: CADENA) → CADENA:
     DEVOLVER _repetir_hasta(pred_ok, prompt, msg_dup)
 FIN
 
-FUNCIÓN submenu_editar_usuario(st: Dict, u: Dict) → NADA:
-    _print(f"\nEditando usuario: {u['nombre']}")
+FUNCIÓN menu_usuarios(st: Dict):
+    _print("\n--- Usuarios ---")
+    _print("1) Agregar")
+    _print("2) Listar")
+    _print("3) Editar usuario")
+    _print("4) Volver")
+    op ← TRIM(LEER("Opción: "))
+    SI op = "1":
+        nombre ← _repetir_hasta(λn → buscar_usuario(st, n) = NULO, "Nombre: ", "Ya existe un usuario con ese nombre. Intenta otro.")
+        edad ← _input_int("Edad: ", 16, 100)
+        INTENTA:
+            st2 ← agregar_usuario(st, nombre, edad)
+            _print("Usuario agregado.")
+            DEVOLVER menu_usuarios(st2)
+        CAPTURA ValueError e:
+            _print("[Error] " + e.mensaje)
+            DEVOLVER menu_usuarios(st)
+    SI op = "2": listar_usuarios(st); DEVOLVER menu_usuarios(st)
+    SI op = "3":
+        nombre ← _input_no_vacio("Nombre del usuario a editar: ")
+        u ← buscar_usuario(st, nombre)
+        SI u = NULO → _print("No existe ese usuario."); DEVOLVER menu_usuarios(st)
+        DEVOLVER submenu_editar_usuario(st, u)
+    SI op = "4": DEVOLVER menu_principal(st)
+    _print("Opción no válida."); DEVOLVER menu_usuarios(st)
+FIN
+
+FUNCIÓN submenu_editar_usuario(st: Dict, u: Dict):
+    _print("\nEditando usuario: " + u["nombre"])
     _print("1) Cambiar nombre")
     _print("2) Cambiar edad")
     _print("3) Volver")
-    subop ← quitar_espacios_extremos(LEER_ENTRADA("Opción: "))
-
+    subop ← TRIM(LEER("Opción: "))
     SI subop = "1":
-        nuevo ← _repetir_hasta(λn: buscar_usuario(st, n) = NULO, "Nuevo nombre: ", "Ya existe un usuario con ese nombre.")
+        nuevo ← _repetir_hasta(λn → buscar_usuario(st, n) = NULO, "Nuevo nombre: ", "Ya existe un usuario con ese nombre.")
         old_key ← _norm(u["nombre"])
-        u2 ← {"nombre": quitar_espacios_extremos(nuevo), "edad": u["edad"], "rutinas": u["rutinas"]}
-        nuevos_idx ← copia_shallow(st["idx_usuarios"])
-        eliminar_clave(nuevos_idx, old_key)
-        nuevos_idx[_norm(u2["nombre"])] ← u2
-        nuevos_usuarios ← MAPEA(λx: SI x ES u ENTONCES u2 SINO x, st["usuarios"])
+        u2 ← {"nombre": TRIM(nuevo), "edad": u["edad"], "rutinas": u["rutinas"]}
+        nuevos_idx ← COPIA_SHALLOW(st["idx_usuarios"]); ELIMINAR_CLAVE(nuevos_idx, old_key); nuevos_idx[_norm(u2["nombre"])] ← u2
+        nuevos_usuarios ← MAP(λx → SI x ES u ENTONCES u2 SINO x, st["usuarios"])
         _print("Nombre actualizado.")
-        DEVOLVER submenu_editar_usuario(st ▷ con {"usuarios": nuevos_usuarios, "idx_usuarios": nuevos_idx}, u2)
-
+        DEVOLVER submenu_editar_usuario(st CON {"usuarios": nuevos_usuarios, "idx_usuarios": nuevos_idx}, u2)
     SI subop = "2":
         u2 ← {"nombre": u["nombre"], "edad": _input_int("Nueva edad: ", 16, 100), "rutinas": u["rutinas"]}
-        nuevos_idx ← copia_shallow(st["idx_usuarios"]); nuevos_idx[_norm(u2["nombre"])] ← u2
-        nuevos_usuarios ← MAPEA(λx: SI x ES u ENTONCES u2 SINO x, st["usuarios"])
+        nuevos_idx ← COPIA_SHALLOW(st["idx_usuarios"]); nuevos_idx[_norm(u2["nombre"])] ← u2
+        nuevos_usuarios ← MAP(λx → SI x ES u ENTONCES u2 SINO x, st["usuarios"])
         _print("Edad actualizada.")
-        DEVOLVER submenu_editar_usuario(st ▷ con {"usuarios": nuevos_usuarios, "idx_usuarios": nuevos_idx}, u2)
-
-    SI subop = "3":
-        DEVOLVER menu_usuarios(st)
-
-    _print("Opción no válida.")
-    DEVOLVER submenu_editar_usuario(st, u)
+        DEVOLVER submenu_editar_usuario(st CON {"usuarios": nuevos_usuarios, "idx_usuarios": nuevos_idx}, u2)
+    SI subop = "3": DEVOLVER menu_usuarios(st)
+    _print("Opción no válida."); DEVOLVER submenu_editar_usuario(st, u)
 FIN
 
-FUNCIÓN menu_ejercicios(st: Dict) → NADA:
+FUNCIÓN menu_ejercicios(st: Dict):
     _print("\n--- Ejercicios (catálogo) ---")
     _print("1) Crear ejercicio")
     _print("2) Listar ejercicios")
     _print("3) Editar ejercicio")
     _print("4) Eliminar ejercicio")
     _print("5) Volver")
-    op ← quitar_espacios_extremos(LEER_ENTRADA("Opción: "))
-
+    op ← TRIM(LEER("Opción: "))
     SI op = "1":
-        nombre ← _repetir_hasta(λn: buscar_ejercicio(st, n) = NULO, "Nombre: ", "Ya existe un ejercicio con ese nombre. Intenta otro.")
+        nombre ← _repetir_hasta(λn → buscar_ejercicio(st, n) = NULO, "Nombre: ", "Ya existe un ejercicio con ese nombre. Intenta otro.")
         reps ← _input_int("Repeticiones: ", 1, 100)
         series ← _input_int("Series: ", 1, 100)
-        INTENTAR:
-            st2 ← crear_ejercicio(st, nombre, reps, series)
-            DEVOLVER menu_ejercicios(st2)
-        CAPTURAR ValueError e:
-            _print(f"[Error] {e.mensaje}")
-            DEVOLVER menu_ejercicios(st)
-
-    SI op = "2":
-        listar_ejercicios(st)
-        DEVOLVER menu_ejercicios(st)
-
+        INTENTA: st2 ← crear_ejercicio(st, nombre, reps, series); DEVOLVER menu_ejercicios(st2)
+        CAPTURA ValueError e: _print("[Error] " + e.mensaje); DEVOLVER menu_ejercicios(st)
+    SI op = "2": listar_ejercicios(st); DEVOLVER menu_ejercicios(st)
     SI op = "3":
         nombre ← _input_no_vacio("Nombre del ejercicio a editar: ")
         ejercicio ← buscar_ejercicio(st, nombre)
-        SI ejercicio = NULO:
-            _print("No existe ese ejercicio.")
-            DEVOLVER menu_ejercicios(st)
+        SI ejercicio = NULO → _print("No existe ese ejercicio."); DEVOLVER menu_ejercicios(st)
         DEVOLVER submenu_editar_ejercicio(st, ejercicio)
-
     SI op = "4":
         nombre ← _input_no_vacio("Nombre a eliminar: ")
-        INTENTAR:
-            st2 ← eliminar_ejercicio(st, nombre)
-            _print("Ejercicio eliminado del catálogo.")
-            DEVOLVER menu_ejercicios(st2)
-        CAPTURAR ValueError e:
-            _print(f"[Error] {e.mensaje}")
-            DEVOLVER menu_ejercicios(st)
-
-    SI op = "5":
-        DEVOLVER menu_principal(st)
-
-    _print("Opción no válida.")
-    DEVOLVER menu_ejercicios(st)
+        INTENTA: st2 ← eliminar_ejercicio(st, nombre); _print("Ejercicio eliminado del catálogo."); DEVOLVER menu_ejercicios(st2)
+        CAPTURA ValueError e: _print("[Error] " + e.mensaje); DEVOLVER menu_ejercicios(st)
+    SI op = "5": DEVOLVER menu_principal(st)
+    _print("Opción no válida."); DEVOLVER menu_ejercicios(st)
 FIN
 
-FUNCIÓN submenu_editar_ejercicio(st: Dict, ej: Dict) → NADA:
-    _print(f"\nEditando ejercicio: {ej['nombre']}")
+FUNCIÓN submenu_editar_ejercicio(st: Dict, ej: Dict):
+    _print("\nEditando ejercicio: " + ej["nombre"])
     _print("1) Cambiar nombre")
     _print("2) Cambiar repeticiones")
     _print("3) Cambiar series")
     _print("4) Volver")
-    subop ← quitar_espacios_extremos(LEER_ENTRADA("Opción: "))
-
+    subop ← TRIM(LEER("Opción: "))
     SI subop = "1":
-        nuevo ← _repetir_hasta(λn: buscar_ejercicio(st, n) = NULO, "Nuevo nombre: ", "Ya existe un ejercicio con ese nombre.")
+        nuevo ← _repetir_hasta(λn → buscar_ejercicio(st, n) = NULO, "Nuevo nombre: ", "Ya existe un ejercicio con ese nombre.")
         old_key ← _norm(ej["nombre"])
-        ej2 ← copia_shallow(ej); ej2["nombre"] ← quitar_espacios_extremos(nuevo)
-        idx ← copia_shallow(st["idx_ejercicios"]); eliminar_clave(idx, old_key); idx[_norm(ej2["nombre"])] ← ej2
-        catalogo ← MAPEA(λx: SI x ES ej ENTONCES ej2 SINO x, st["ejercicios_catalogo"])
+        ej2 ← COPIA_SHALLOW(ej); ej2["nombre"] ← TRIM(nuevo)
+        idx ← COPIA_SHALLOW(st["idx_ejercicios"]); ELIMINAR_CLAVE(idx, old_key); idx[_norm(ej2["nombre"])] ← ej2
+        catalogo ← MAP(λx → SI x ES ej ENTONCES ej2 SINO x, st["ejercicios_catalogo"])
         _print("Nombre actualizado.")
-        DEVOLVER submenu_editar_ejercicio(st ▷ con {"idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2)
-
+        DEVOLVER submenu_editar_ejercicio(st CON {"idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2)
     SI subop = "2":
         ej2 ← actualizar_ejercicio(ej, rep=_input_int("Nuevas repeticiones: ", 1, 100))
-        idx ← copia_shallow(st["idx_ejercicios"]); idx[_norm(ej2["nombre"])] ← ej2
-        catalogo ← MAPEA(λx: SI x ES ej ENTONCES ej2 SINO x, st["ejercicios_catalogo"])
+        idx ← COPIA_SHALLOW(st["idx_ejercicios"]); idx[_norm(ej2["nombre"])] ← ej2
+        catalogo ← MAP(λx → SI x ES ej ENTONCES ej2 SINO x, st["ejercicios_catalogo"])
         _print("Repeticiones actualizadas.")
-        DEVOLVER submenu_editar_ejercicio(st ▷ con {"idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2)
-
+        DEVOLVER submenu_editar_ejercicio(st CON {"idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2)
     SI subop = "3":
         ej2 ← actualizar_ejercicio(ej, ser=_input_int("Nuevas series: ", 1, 100))
-        idx ← copia_shallow(st["idx_ejercicios"]); idx[_norm(ej2["nombre"])] ← ej2
-        catalogo ← MAPEA(λx: SI x ES ej ENTONCES ej2 SINO x, st["ejercicios_catalogo"])
+        idx ← COPIA_SHALLOW(st["idx_ejercicios"]); idx[_norm(ej2["nombre"])] ← ej2
+        catalogo ← MAP(λx → SI x ES ej ENTONCES ej2 SINO x, st["ejercicios_catalogo"])
         _print("Series actualizadas.")
-        DEVOLVER submenu_editar_ejercicio(st ▷ con {"idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2)
-
-    SI subop = "4":
-        DEVOLVER menu_ejercicios(st)
-
-    _print("Opción no válida.")
-    DEVOLVER submenu_editar_ejercicio(st, ej)
+        DEVOLVER submenu_editar_ejercicio(st CON {"idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2)
+    SI subop = "4": DEVOLVER menu_ejercicios(st)
+    _print("Opción no válida."); DEVOLVER submenu_editar_ejercicio(st, ej)
 FIN
 
-FUNCIÓN menu_rutinas(st: Dict) → NADA:
+FUNCIÓN menu_rutinas(st: Dict):
     _print("\n--- Rutinas ---")
     _print("1) Crear rutina (seleccionando ejercicios del catálogo)")
     _print("2) Listar rutinas")
     _print("3) Editar rutina")
     _print("4) Volver")
-    op ← quitar_espacios_extremos(LEER_ENTRADA("Opción: "))
-
+    op ← TRIM(LEER("Opción: "))
     SI op = "1":
-        SI st["ejercicios_catalogo"].vacía():
-            _print("Primero crea ejercicios en el catálogo.")
-            DEVOLVER menu_rutinas(st)
-        nombre ← _repetir_hasta(λn: buscar_rutina(st, n) = NULO, "Nombre de la rutina: ", "Ya existe una rutina con ese nombre. Intenta otro.")
+        SI VACIA(st["ejercicios_catalogo"]) → _print("Primero crea ejercicios en el catálogo."); DEVOLVER menu_rutinas(st)
+        nombre ← _repetir_hasta(λn → buscar_rutina(st, n) = NULO, "Nombre de la rutina: ", "Ya existe una rutina con ese nombre. Intenta otro.")
         desc ← _input_no_vacio("Descripción: ")
         _print("\nEjercicios disponibles (separa por coma):")
         listar_ejercicios(st)
-        sel ← _input_no_vacio("Nombres a incluir (separados por coma): ")
-        nombres ← FILTRAR(λx: x ≠ "", MAPEA(λs: quitar_espacios_extremos(s), split_por_coma(sel)))
-        INTENTAR:
-            st2 ← crear_rutina(st, nombre, desc, nombres)
-            _print("Rutina creada.")
-            DEVOLVER menu_rutinas(st2)
-        CAPTURAR ValueError e:
-            _print(f"[Error] {e.mensaje}")
-            DEVOLVER menu_rutinas(st)
-
-    SI op = "2":
-        listar_rutinas(st)
-        DEVOLVER menu_rutinas(st)
-
+        // REINTENTO hasta válidos:
+        nombres ← _pedir_nombres_validos_ejercicios(st)
+        INTENTA: st2 ← crear_rutina(st, nombre, desc, nombres); _print("Rutina creada."); DEVOLVER menu_rutinas(st2)
+        CAPTURA ValueError e: _print("[Error] " + e.mensaje); DEVOLVER menu_rutinas(st)
+    SI op = "2": listar_rutinas(st); DEVOLVER menu_rutinas(st)
     SI op = "3":
         nombre ← _input_no_vacio("Nombre de la rutina a editar: ")
         r ← buscar_rutina(st, nombre)
-        SI r = NULO:
-            _print("No existe esa rutina.")
-            DEVOLVER menu_rutinas(st)
+        SI r = NULO → _print("No existe esa rutina."); DEVOLVER menu_rutinas(st)
         DEVOLVER submenu_editar_rutina(st, r)
-
-    SI op = "4":
-        DEVOLVER menu_principal(st)
-
-    _print("Opción no válida.")
-    DEVOLVER menu_rutinas(st)
+    SI op = "4": DEVOLVER menu_principal(st)
+    _print("Opción no válida."); DEVOLVER menu_rutinas(st)
 FIN
 
-FUNCIÓN submenu_editar_rutina(st: Dict, r: Dict) → NADA:
-    _print(f"\n>>> Editando: {r['nombre']}")
+FUNCIÓN submenu_editar_rutina(st: Dict, r: Dict):
+    _print("\n>>> Editando: " + r["nombre"])
     _print("1) Agregar ejercicio (del catálogo)")
     _print("2) Eliminar ejercicio")
     _print("3) Actualizar reps/series de un ejercicio")
@@ -735,92 +640,65 @@ FUNCIÓN submenu_editar_rutina(st: Dict, r: Dict) → NADA:
     _print("5) Ver duración total")
     _print("6) Listar ejercicios")
     _print("7) Volver")
-    op ← quitar_espacios_extremos(LEER_ENTRADA("Opción: "))
-
+    op ← TRIM(LEER("Opción: "))
     SI op = "1":
-        SI st["ejercicios_catalogo"].vacía():
-            _print("Catálogo vacío. Crea ejercicios primero.")
-            DEVOLVER submenu_editar_rutina(st, r)
+        SI VACIA(st["ejercicios_catalogo"]) → _print("Catálogo vacío. Crea ejercicios primero."); DEVOLVER submenu_editar_rutina(st, r)
         listar_ejercicios(st)
-        nombre ← _input_no_vacio("Nombre del ejercicio a agregar: ")
-        INTENTAR:
+        // REINTENTO local hasta que el ejercicio exista:
+        FUNCIÓN _pedir_ej_valido() → CADENA:
+            nom ← _input_no_vacio("Nombre del ejercicio a agregar: ")
+            SI buscar_ejercicio(st, nom) = NULO → _print("Ese ejercicio no existe en el catálogo."); DEVOLVER _pedir_ej_valido()
+            DEVOLVER nom
+        FIN
+        nombre ← _pedir_ej_valido()
+        INTENTA:
             st2 ← rutina_agregar_ejercicio_st(st, r["nombre"], nombre)
             _print("Ejercicio agregado a la rutina.")
             r2 ← buscar_rutina(st2, r["nombre"]) O r
             DEVOLVER submenu_editar_rutina(st2, r2)
-        CAPTURAR ValueError e:
-            _print(f"[Error] {e.mensaje}")
+        CAPTURA ValueError e:
+            _print("[Error] " + e.mensaje)
             DEVOLVER submenu_editar_rutina(st, r)
-
     SI op = "2":
         nombre ← _input_no_vacio("Nombre del ejercicio a eliminar: ")
-        INTENTAR:
-            st2 ← rutina_eliminar_ejercicio_st(st, r["nombre"], nombre)
-            _print("Ejercicio eliminado de la rutina.")
-            r2 ← buscar_rutina(st2, r["nombre"]) O r
-            DEVOLVER submenu_editar_rutina(st2, r2)
-        CAPTURAR ValueError e:
-            _print(f"[Error] {e.mensaje}")
-            DEVOLVER submenu_editar_rutina(st, r)
-
+        INTENTA: st2 ← rutina_eliminar_ejercicio_st(st, r["nombre"], nombre); _print("Ejercicio eliminado de la rutina."); r2 ← buscar_rutina(st2, r["nombre"]) O r; DEVOLVER submenu_editar_rutina(st2, r2)
+        CAPTURA ValueError e: _print("[Error] " + e.mensaje); DEVOLVER submenu_editar_rutina(st, r)
     SI op = "3":
         nombre ← _input_no_vacio("Ejercicio a actualizar: ")
-        rep_txt ← quitar_espacios_extremos(LEER_ENTRADA("Nuevas repeticiones (enter para mantener): "))
-        ser_txt ← quitar_espacios_extremos(LEER_ENTRADA("Nuevas series (enter para mantener): "))
-        rep ← SI rep_txt = "" ENTONCES NULO SINO entero(rep_txt)
-        ser ← SI ser_txt = "" ENTONCES NULO SINO entero(ser_txt)
-        INTENTAR:
-            st2 ← rutina_actualizar_ejercicio_st(st, r["nombre"], nombre, rep, ser)
-            _print("Ejercicio actualizado.")
-            r2 ← buscar_rutina(st2, r["nombre"]) O r
-            DEVOLVER submenu_editar_rutina(st2, r2)
-        CAPTURAR ValueError e:
-            _print(f"[Error] {e.mensaje}")
-            DEVOLVER submenu_editar_rutina(st, r)
-
+        rep_txt ← TRIM(LEER("Nuevas repeticiones (enter para mantener): "))
+        ser_txt ← TRIM(LEER("Nuevas series (enter para mantener): "))
+        rep ← SI rep_txt = "" ENTONCES NULO SINO ENTERO(rep_txt)
+        ser ← SI ser_txt = "" ENTONCES NULO SINO ENTERO(ser_txt)
+        INTENTA: st2 ← rutina_actualizar_ejercicio_st(st, r["nombre"], nombre, rep, ser); _print("Ejercicio actualizado."); r2 ← buscar_rutina(st2, r["nombre"]) O r; DEVOLVER submenu_editar_rutina(st2, r2)
+        CAPTURA ValueError e: _print("[Error] " + e.mensaje); DEVOLVER submenu_editar_rutina(st, r)
     SI op = "4":
-        nuevo ← quitar_espacios_extremos(LEER_ENTRADA("Nuevo nombre (enter=mantener): "))
-        desc ← quitar_espacios_extremos(LEER_ENTRADA("Nueva descripción (enter=mantener): "))
-        INTENTAR:
-            st2 ← editar_rutina(st, r["nombre"],
-                                nuevo_nombre = (NULO SI nuevo = "" SINO nuevo),
-                                nueva_desc = (NULO SI desc = "" SINO desc))
+        nuevo ← TRIM(LEER("Nuevo nombre (enter=mantener): "))
+        desc ← TRIM(LEER("Nueva descripción (enter=mantener): "))
+        INTENTA:
+            st2 ← editar_rutina(st, r["nombre"], (NULO SI nuevo = "" SINO nuevo), (NULO SI desc = "" SINO desc))
             _print("Datos actualizados.")
-            r2 ← buscar_rutina(st2, (nuevo ≠ "" ? nuevo : r["nombre"])) O r
+            r2 ← buscar_rutina(st2, (SI nuevo ≠ "" ENTONCES nuevo SINO r["nombre"])) O r
             DEVOLVER submenu_editar_rutina(st2, r2)
-        CAPTURAR ValueError e:
-            _print(f"[Error] {e.mensaje}")
+        CAPTURA ValueError e:
+            _print("[Error] " + e.mensaje)
             DEVOLVER submenu_editar_rutina(st, r)
-
-    SI op = "5":
-        _print("Duración total: " + minutos_a_texto(rutina_duracion_total_min(r)))
-        DEVOLVER submenu_editar_rutina(st, r)
-
+    SI op = "5": _print("Duración total: " + minutos_a_texto(rutina_duracion_total_min(r))); DEVOLVER submenu_editar_rutina(st, r)
     SI op = "6":
-        SI r["ejercicios"].vacía():
-            _print("(Sin ejercicios)")
+        SI VACIA(r["ejercicios"]) → _print("(Sin ejercicios)")
         SINO:
-            FUNCIÓN go(lst: LISTA[Dict]):
-                SI lst.vacía(): RETORNAR
-                cabeza ← lst[0]; resto ← lst[1..]
-                _print("  • " + str_ejercicio(cabeza))
-                go(resto)
+            FUNCIÓN go(lst):
+                SI VACIA(lst) → RETORNAR
+                _print("  • " + str_ejercicio(lst[0]))
+                go(SUBLISTA(lst, 1, FIN))
             FIN
             go(r["ejercicios"])
         DEVOLVER submenu_editar_rutina(st, r)
-
-    SI op = "7":
-        DEVOLVER menu_rutinas(st)
-
-    _print("Opción no válida.")
-    DEVOLVER submenu_editar_rutina(st, r)
+    SI op = "7": DEVOLVER menu_rutinas(st)
+    _print("Opción no válida."); DEVOLVER submenu_editar_rutina(st, r)
 FIN
 
 SI __name__ = "__main__":
     st ← estado_vacio()
-    INTENTAR:
-        menu_principal(st)
-    CAPTURAR KeyboardInterrupt:
-        IMPRIMIR "\n¡Hasta luego!"
+    INTENTA: menu_principal(st)
+    CAPTURA KeyboardInterrupt: IMPRIMIR "\n¡Hasta luego!"
 FIN
-

@@ -7,16 +7,20 @@ from functools import reduce
 SEC_POR_REP = 5
 DESCANSO_ENTRE_SERIES = 30
 
+
 def minutos_a_texto(mins: float) -> str:
     total = int(round(mins * 60))
     m, s = divmod(total, 60)
     return f"{m} min {s} s"
 
+
 def _norm(s: str) -> str:
     return s.strip().lower()
 
+
 # -------------------- Tipos de datos inmutables (dicts) --------------------
 # Usamos dicts (estilo récord inmutable por convención: no mutar en sitio)
+
 
 # Ejercicio: {nombre, repeticiones, series, sec_por_rep, descanso_entre_series}
 def mk_ejercicio(
@@ -36,6 +40,7 @@ def mk_ejercicio(
     validar_ejercicio(e)
     return e
 
+
 def validar_ejercicio(e: Dict) -> None:
     if not e["nombre"]:
         raise ValueError("El nombre del ejercicio no puede estar vacío.")
@@ -50,16 +55,23 @@ def validar_ejercicio(e: Dict) -> None:
     if e["sec_por_rep"] <= 0 or e["descanso_entre_series"] < 0:
         raise ValueError("Tiempos inválidos para el ejercicio.")
 
+
 def duracion_ejercicio_min(e: Dict) -> float:
     movimiento = e["repeticiones"] * e["sec_por_rep"] * e["series"]
     descanso = e["descanso_entre_series"] * max(0, e["series"] - 1)
     return (movimiento + descanso) / 60.0
 
-def str_ejercicio(e: Dict) -> str:
-    return (f'{e["nombre"]} | reps: {e["repeticiones"]} | series: {e["series"]} '
-            f'| estimado: {minutos_a_texto(duracion_ejercicio_min(e))}')
 
-def actualizar_ejercicio(e: Dict, rep: Optional[int] = None, ser: Optional[int] = None) -> Dict:
+def str_ejercicio(e: Dict) -> str:
+    return (
+        f'{e["nombre"]} | reps: {e["repeticiones"]} | series: {e["series"]} '
+        f"| estimado: {minutos_a_texto(duracion_ejercicio_min(e))}"
+    )
+
+
+def actualizar_ejercicio(
+    e: Dict, rep: Optional[int] = None, ser: Optional[int] = None
+) -> Dict:
     nuevo = dict(e)
     if rep is not None:
         if rep <= 0:
@@ -72,6 +84,7 @@ def actualizar_ejercicio(e: Dict, rep: Optional[int] = None, ser: Optional[int] 
     validar_ejercicio(nuevo)
     return nuevo
 
+
 # Rutina: {nombre, descripcion, ejercicios: List[Ejercicio]}
 def mk_rutina(nombre: str, descripcion: str, ejercicios: List[Dict]) -> Dict:
     r = {
@@ -82,6 +95,7 @@ def mk_rutina(nombre: str, descripcion: str, ejercicios: List[Dict]) -> Dict:
     validar_rutina(r)
     return r
 
+
 def validar_rutina(r: Dict) -> None:
     if not r["nombre"]:
         raise ValueError("El nombre de la rutina no puede estar vacío.")
@@ -90,13 +104,16 @@ def validar_rutina(r: Dict) -> None:
     if not r["ejercicios"]:
         raise ValueError("Una rutina debe tener al menos un ejercicio.")
     nombres = list(map(lambda ej: _norm(ej["nombre"]), r["ejercicios"]))
+
     # verificar duplicados con reduce
     def acum_dups(acc: Tuple[set, bool], nom: str) -> Tuple[set, bool]:
         vistos, dup = acc
         return (vistos | {nom}, dup or (nom in vistos))
+
     _, hay_dup = reduce(acum_dups, nombres, (set(), False))
     if hay_dup:
         raise ValueError("Hay ejercicios duplicados por nombre dentro de la rutina.")
+
 
 def rutina_agregar_ejercicio(r: Dict, e: Dict) -> Dict:
     key = _norm(e["nombre"])
@@ -110,6 +127,7 @@ def rutina_agregar_ejercicio(r: Dict, e: Dict) -> Dict:
     nueva_lista = r["ejercicios"] + [e]
     return mk_rutina(r["nombre"], r["descripcion"], nueva_lista)
 
+
 def rutina_eliminar_ejercicio(r: Dict, nombre_ejercicio: str) -> Dict:
     key = _norm(nombre_ejercicio)
     # filtrar sin comprensiones
@@ -122,8 +140,10 @@ def rutina_eliminar_ejercicio(r: Dict, nombre_ejercicio: str) -> Dict:
         )
     return mk_rutina(r["nombre"], r["descripcion"], nueva)
 
+
 def rutina_buscar_ejercicio(r: Dict, nombre_ejercicio: str) -> Dict:
     key = _norm(nombre_ejercicio)
+
     # búsqueda recursiva
     def go(lst: List[Dict]) -> Dict:
         if not lst:
@@ -131,25 +151,35 @@ def rutina_buscar_ejercicio(r: Dict, nombre_ejercicio: str) -> Dict:
         cabeza, *resto = lst[0:1], lst[1:]
         ej = cabeza[0]
         return ej if _norm(ej["nombre"]) == key else go(resto)
+
     return go(r["ejercicios"])
+
 
 def rutina_actualizar_ejercicio(
     r: Dict, nombre_ejercicio: str, rep: Optional[int] = None, ser: Optional[int] = None
 ) -> Dict:
     key = _norm(nombre_ejercicio)
+
     # map para reemplazar el ejercicio objetivo
     def rep_o_mismo(ej: Dict) -> Dict:
         return actualizar_ejercicio(ej, rep, ser) if _norm(ej["nombre"]) == key else ej
+
     nueva = list(map(rep_o_mismo, r["ejercicios"]))
     # verificar que sí existía
-    igual = reduce(lambda acc, ej: acc and (_norm(ej["nombre"]) != key), r["ejercicios"], True)
+    igual = reduce(
+        lambda acc, ej: acc and (_norm(ej["nombre"]) != key), r["ejercicios"], True
+    )
     if igual:
         # ninguna coincidencia en la lista original
         raise ValueError("Ejercicio no encontrado en la rutina.")
     return mk_rutina(r["nombre"], r["descripcion"], nueva)
 
+
 def rutina_duracion_total_min(r: Dict) -> float:
-    return reduce(lambda acc, ej: acc + duracion_ejercicio_min(ej), r["ejercicios"], 0.0)
+    return reduce(
+        lambda acc, ej: acc + duracion_ejercicio_min(ej), r["ejercicios"], 0.0
+    )
+
 
 def str_rutina(r: Dict) -> str:
     return (
@@ -159,7 +189,10 @@ def str_rutina(r: Dict) -> str:
         f"Ejercicios: {len(r['ejercicios'])}"
     )
 
-def rutina_actualizar_datos(r: Dict, nombre: Optional[str] = None, descripcion: Optional[str] = None) -> Dict:
+
+def rutina_actualizar_datos(
+    r: Dict, nombre: Optional[str] = None, descripcion: Optional[str] = None
+) -> Dict:
     nuevo_nombre = r["nombre"] if nombre is None else nombre.strip()
     nueva_desc = r["descripcion"] if descripcion is None else descripcion.strip()
     if nombre is not None and not nuevo_nombre:
@@ -168,11 +201,13 @@ def rutina_actualizar_datos(r: Dict, nombre: Optional[str] = None, descripcion: 
         raise ValueError("La descripción de la rutina no puede quedar vacía.")
     return mk_rutina(nuevo_nombre, nueva_desc, r["ejercicios"])
 
+
 # Usuario: {nombre, edad, rutinas: List[Rutina]}
 def mk_usuario(nombre: str, edad: int) -> Dict:
     u = {"nombre": nombre.strip(), "edad": int(edad), "rutinas": []}  # type: ignore
     validar_usuario(u)
     return u
+
 
 def validar_usuario(u: Dict) -> None:
     if not u["nombre"]:
@@ -182,15 +217,20 @@ def validar_usuario(u: Dict) -> None:
     if u["edad"] > 100:
         raise ValueError("La edad debe ser menor o igual a 100 años.")
 
+
 def usuario_asignar_rutina(u: Dict, r: Dict) -> Dict:
     key = _norm(r["nombre"])
-    ya = reduce(lambda acc, rr: acc or (_norm(rr["nombre"]) == key), u["rutinas"], False)
+    ya = reduce(
+        lambda acc, rr: acc or (_norm(rr["nombre"]) == key), u["rutinas"], False
+    )
     if ya:
         raise ValueError(f"El usuario ya tiene una rutina llamada '{r['nombre']}'.")
     return {"nombre": u["nombre"], "edad": u["edad"], "rutinas": u["rutinas"] + [r]}
 
+
 def str_usuario(u: Dict) -> str:
     return f"Usuario: {u['nombre']} | Edad: {u['edad']} | Rutinas: {len(u['rutinas'])}"
+
 
 # -------------------- Estado del sistema (funcional) --------------------
 # Estado: {
@@ -202,6 +242,7 @@ def str_usuario(u: Dict) -> str:
 #   idx_rutinas: Dict[str, Rutina],
 # }
 
+
 def estado_vacio() -> Dict:
     return {
         "usuarios": [],
@@ -212,13 +253,22 @@ def estado_vacio() -> Dict:
         "idx_rutinas": {},
     }
 
+
 # --------- Helpers I/O (recursivos, sin while) ---------
+
 
 def _input_no_vacio(msg: str) -> str:
     txt = input(msg).strip()
-    return txt if txt else (_print("El valor no puede estar vacío.") or _input_no_vacio(msg))
+    return (
+        txt
+        if txt
+        else (_print("El valor no puede estar vacío.") or _input_no_vacio(msg))
+    )
 
-def _input_int(msg: str, minimo: Optional[int] = None, maximo: Optional[int] = None) -> int:
+
+def _input_int(
+    msg: str, minimo: Optional[int] = None, maximo: Optional[int] = None
+) -> int:
     raw = input(msg).strip()
     try:
         val = int(raw)
@@ -233,41 +283,71 @@ def _input_int(msg: str, minimo: Optional[int] = None, maximo: Optional[int] = N
         _print("Ingresa un número entero válido.")
         return _input_int(msg, minimo, maximo)
 
+
 def _print(msg: str) -> None:
     print(msg)
 
+
+# NUEVO: pedir nombres válidos de ejercicios (reintenta hasta que existan)
+def _pedir_nombres_validos_ejercicios(st: Dict) -> List[str]:
+    """
+    Pide 'Nombres a incluir (separados por coma)' y valida que todos existan en el catálogo.
+    Si hay error (no existen o nombres repetidos), muestra el error y vuelve a pedir.
+    """
+    sel = _input_no_vacio("Nombres a incluir (separados por coma): ")
+    nombres = list(filter(lambda x: x != "", map(lambda s: s.strip(), sel.split(","))))
+    try:
+        # Solo para validar; no usamos el resultado aquí.
+        _ = obtener_ejercicios_por_nombres(st, nombres)
+        return nombres
+    except ValueError as e:
+        _print(f"[Error] {e}")
+        return _pedir_nombres_validos_ejercicios(st)
+
+
 # -------------------- Búsquedas en índices --------------------
+
 
 def buscar_usuario(st: Dict, nombre: str) -> Optional[Dict]:
     return st["idx_usuarios"].get(_norm(nombre))
 
+
 def buscar_ejercicio(st: Dict, nombre: str) -> Optional[Dict]:
     return st["idx_ejercicios"].get(_norm(nombre))
+
 
 def buscar_rutina(st: Dict, nombre: str) -> Optional[Dict]:
     return st["idx_rutinas"].get(_norm(nombre))
 
+
 # -------------------- Operaciones de dominio (devuelven nuevo estado) --------------------
+
 
 def agregar_usuario(st: Dict, nombre: str, edad: int) -> Dict:
     key = _norm(nombre)
     if key in st["idx_usuarios"]:
         raise ValueError("Ya existe un usuario con ese nombre.")
     u = mk_usuario(nombre, edad)
-    nuevos_idx = dict(st["idx_usuarios"]); nuevos_idx[key] = u
+    nuevos_idx = dict(st["idx_usuarios"])
+    nuevos_idx[key] = u
     return {**st, "usuarios": st["usuarios"] + [u], "idx_usuarios": nuevos_idx}
+
 
 def listar_usuarios(st: Dict) -> None:
     if not st["usuarios"]:
         _print("No hay usuarios.")
         return
+
     # imprimir por recursión
     def go(lst: List[Dict]) -> None:
-        if not lst: return
+        if not lst:
+            return
         cabeza, resto = lst[0], lst[1:]
         _print(str_usuario(cabeza))
         go(resto)
+
     go(st["usuarios"])
+
 
 def mostrar_rutinas_de_usuario(st: Dict, nombre_usuario: str) -> None:
     u = buscar_usuario(st, nombre_usuario)
@@ -277,32 +357,50 @@ def mostrar_rutinas_de_usuario(st: Dict, nombre_usuario: str) -> None:
         _print(f"{u['nombre']} no tiene rutinas asignadas.")
     else:
         _print(f"Rutinas de {u['nombre']}:")
+
         def go(lst: List[Dict]) -> None:
-            if not lst: return
+            if not lst:
+                return
             cabeza, resto = lst[0], lst[1:]
-            _print(f"  - {cabeza['nombre']}: {minutos_a_texto(rutina_duracion_total_min(cabeza))}")
+            _print(
+                f"  - {cabeza['nombre']}: {minutos_a_texto(rutina_duracion_total_min(cabeza))}"
+            )
             go(resto)
+
         go(u["rutinas"])
+
 
 def crear_ejercicio(st: Dict, nombre: str, rep: int, ser: int) -> Dict:
     key = _norm(nombre)
     if key in st["idx_ejercicios"]:
         raise ValueError("Ya existe un ejercicio en el catálogo con ese nombre.")
     ej = mk_ejercicio(nombre, rep, ser)
-    idx = dict(st["idx_ejercicios"]); idx[key] = ej
-    _print(f"Ejercicio creado. Duración estimada: {minutos_a_texto(duracion_ejercicio_min(ej))}")
-    return {**st, "ejercicios_catalogo": st["ejercicios_catalogo"] + [ej], "idx_ejercicios": idx}
+    idx = dict(st["idx_ejercicios"])
+    idx[key] = ej
+    _print(
+        f"Ejercicio creado. Duración estimada: {minutos_a_texto(duracion_ejercicio_min(ej))}"
+    )
+    return {
+        **st,
+        "ejercicios_catalogo": st["ejercicios_catalogo"] + [ej],
+        "idx_ejercicios": idx,
+    }
+
 
 def listar_ejercicios(st: Dict) -> None:
     if not st["ejercicios_catalogo"]:
         _print("(Catálogo vacío)")
         return
+
     def go(lst: List[Dict]) -> None:
-        if not lst: return
+        if not lst:
+            return
         cabeza, resto = lst[0], lst[1:]
         _print(f"- {str_ejercicio(cabeza)}")
         go(resto)
+
     go(st["ejercicios_catalogo"])
+
 
 def eliminar_ejercicio(st: Dict, nombre: str) -> Dict:
     key = _norm(nombre)
@@ -311,16 +409,25 @@ def eliminar_ejercicio(st: Dict, nombre: str) -> Dict:
         raise ValueError("No se encontró el ejercicio para eliminar.")
     # quitar de lista manteniendo orden (filter)
     nueva_lista = list(filter(lambda e: e is not ej, st["ejercicios_catalogo"]))
+
     # eliminar de rutinas sin romperlas (intentar recursivamente)
     def quitar_en_rutina(r: Dict) -> Dict:
         try:
             return rutina_eliminar_ejercicio(r, ej["nombre"])
         except ValueError:
             return r
+
     nuevas_rutinas = list(map(quitar_en_rutina, st["rutinas"]))
     # actualizar índices
-    nuevo_idx = dict(st["idx_ejercicios"]); nuevo_idx.pop(key, None)
-    return {**st, "ejercicios_catalogo": nueva_lista, "rutinas": nuevas_rutinas, "idx_ejercicios": nuevo_idx}
+    nuevo_idx = dict(st["idx_ejercicios"])
+    nuevo_idx.pop(key, None)
+    return {
+        **st,
+        "ejercicios_catalogo": nueva_lista,
+        "rutinas": nuevas_rutinas,
+        "idx_ejercicios": nuevo_idx,
+    }
+
 
 def obtener_ejercicios_por_nombres(st: Dict, nombres: List[str]) -> List[Dict]:
     # Recursivo con control de duplicados
@@ -335,9 +442,13 @@ def obtener_ejercicios_por_nombres(st: Dict, nombres: List[str]) -> List[Dict]:
         if ej is None:
             raise ValueError(f"Ejercicio '{n}' no existe en el catálogo.")
         return go(pend[1:], vistos | {key}, acc + [ej])
+
     return go(nombres, set(), [])
 
-def crear_rutina(st: Dict, nombre: str, descripcion: str, nombres_ejercicios: List[str]) -> Dict:
+
+def crear_rutina(
+    st: Dict, nombre: str, descripcion: str, nombres_ejercicios: List[str]
+) -> Dict:
     if not st["ejercicios_catalogo"]:
         raise ValueError("Primero crea ejercicios en el catálogo.")
     if not nombres_ejercicios:
@@ -347,22 +458,29 @@ def crear_rutina(st: Dict, nombre: str, descripcion: str, nombres_ejercicios: Li
         raise ValueError("Ya existe una rutina con ese nombre.")
     ejercicios = obtener_ejercicios_por_nombres(st, nombres_ejercicios)
     r = mk_rutina(nombre, descripcion, ejercicios)
-    idx = dict(st["idx_rutinas"]); idx[key] = r
+    idx = dict(st["idx_rutinas"])
+    idx[key] = r
     return {**st, "rutinas": st["rutinas"] + [r], "idx_rutinas": idx}
+
 
 def listar_rutinas(st: Dict) -> None:
     if not st["rutinas"]:
         _print("No hay rutinas.")
         return
+
     def imprimir_rutina(r: Dict) -> None:
         _print("-" * 60)
         _print(str_rutina(r))
+
         def go(lst: List[Dict]) -> None:
-            if not lst: return
+            if not lst:
+                return
             cabeza, resto = lst[0], lst[1:]
             _print(f"  • {str_ejercicio(cabeza)}")
             go(resto)
+
         go(r["ejercicios"])
+
     def go(lst: List[Dict]) -> None:
         if not lst:
             _print("-" * 60)
@@ -370,9 +488,16 @@ def listar_rutinas(st: Dict) -> None:
         cabeza, resto = lst[0], lst[1:]
         imprimir_rutina(cabeza)
         go(resto)
+
     go(st["rutinas"])
 
-def editar_rutina(st: Dict, nombre: str, nuevo_nombre: Optional[str] = None, nueva_desc: Optional[str] = None) -> Dict:
+
+def editar_rutina(
+    st: Dict,
+    nombre: str,
+    nuevo_nombre: Optional[str] = None,
+    nueva_desc: Optional[str] = None,
+) -> Dict:
     r = buscar_rutina(st, nombre)
     if r is None:
         raise ValueError("Rutina no encontrada.")
@@ -390,7 +515,10 @@ def editar_rutina(st: Dict, nombre: str, nuevo_nombre: Optional[str] = None, nue
     idx[new_key] = r2
     return {**st, "rutinas": nuevas_rutinas, "idx_rutinas": idx}
 
-def rutina_agregar_ejercicio_st(st: Dict, nombre_rutina: str, nombre_ejercicio: str) -> Dict:
+
+def rutina_agregar_ejercicio_st(
+    st: Dict, nombre_rutina: str, nombre_ejercicio: str
+) -> Dict:
     r = buscar_rutina(st, nombre_rutina)
     if r is None:
         raise ValueError("Rutina no encontrada.")
@@ -399,29 +527,40 @@ def rutina_agregar_ejercicio_st(st: Dict, nombre_rutina: str, nombre_ejercicio: 
         raise ValueError("Ese ejercicio no existe en el catálogo.")
     r2 = rutina_agregar_ejercicio(r, ej)
     nuevas = list(map(lambda x: r2 if x is r else x, st["rutinas"]))
-    idx = dict(st["idx_rutinas"]); idx[_norm(r2["nombre"])] = r2
+    idx = dict(st["idx_rutinas"])
+    idx[_norm(r2["nombre"])] = r2
     return {**st, "rutinas": nuevas, "idx_rutinas": idx}
 
-def rutina_eliminar_ejercicio_st(st: Dict, nombre_rutina: str, nombre_ejercicio: str) -> Dict:
+
+def rutina_eliminar_ejercicio_st(
+    st: Dict, nombre_rutina: str, nombre_ejercicio: str
+) -> Dict:
     r = buscar_rutina(st, nombre_rutina)
     if r is None:
         raise ValueError("Rutina no encontrada.")
     r2 = rutina_eliminar_ejercicio(r, nombre_ejercicio)
     nuevas = list(map(lambda x: r2 if x is r else x, st["rutinas"]))
-    idx = dict(st["idx_rutinas"]); idx[_norm(r2["nombre"])] = r2
+    idx = dict(st["idx_rutinas"])
+    idx[_norm(r2["nombre"])] = r2
     return {**st, "rutinas": nuevas, "idx_rutinas": idx}
 
+
 def rutina_actualizar_ejercicio_st(
-    st: Dict, nombre_rutina: str, nombre_ejercicio: str,
-    rep: Optional[int] = None, ser: Optional[int] = None
+    st: Dict,
+    nombre_rutina: str,
+    nombre_ejercicio: str,
+    rep: Optional[int] = None,
+    ser: Optional[int] = None,
 ) -> Dict:
     r = buscar_rutina(st, nombre_rutina)
     if r is None:
         raise ValueError("Rutina no encontrada.")
     r2 = rutina_actualizar_ejercicio(r, nombre_ejercicio, rep, ser)
     nuevas = list(map(lambda x: r2 if x is r else x, st["rutinas"]))
-    idx = dict(st["idx_rutinas"]); idx[_norm(r2["nombre"])] = r2
+    idx = dict(st["idx_rutinas"])
+    idx[_norm(r2["nombre"])] = r2
     return {**st, "rutinas": nuevas, "idx_rutinas": idx}
+
 
 def asignar_rutina_a_usuario(st: Dict, nombre_usuario: str, nombre_rutina: str) -> Dict:
     u = buscar_usuario(st, nombre_usuario)
@@ -433,25 +572,34 @@ def asignar_rutina_a_usuario(st: Dict, nombre_usuario: str, nombre_rutina: str) 
     u2 = usuario_asignar_rutina(u, r)
     # reemplazar en lista y actualizar índice
     nuevos_usuarios = list(map(lambda x: u2 if x is u else x, st["usuarios"]))
-    idx = dict(st["idx_usuarios"]); idx[_norm(u2["nombre"])] = u2
+    idx = dict(st["idx_usuarios"])
+    idx[_norm(u2["nombre"])] = u2
     return {**st, "usuarios": nuevos_usuarios, "idx_usuarios": idx}
+
 
 def reporte_por_usuario(st: Dict) -> None:
     if not st["usuarios"]:
         _print("No hay usuarios.")
         return
+
     def imprimir_u(u: Dict) -> None:
         _print("=" * 60)
         _print(f"Usuario: {u['nombre']} | Edad: {u['edad']}")
         if not u["rutinas"]:
             _print("  (Sin rutinas asignadas)")
         else:
+
             def go(lst: List[Dict]) -> None:
-                if not lst: return
+                if not lst:
+                    return
                 cabeza, resto = lst[0], lst[1:]
-                _print(f"  - {cabeza['nombre']}: {minutos_a_texto(rutina_duracion_total_min(cabeza))}")
+                _print(
+                    f"  - {cabeza['nombre']}: {minutos_a_texto(rutina_duracion_total_min(cabeza))}"
+                )
                 go(resto)
+
             go(u["rutinas"])
+
     def go(lst: List[Dict]) -> None:
         if not lst:
             _print("=" * 60)
@@ -459,9 +607,12 @@ def reporte_por_usuario(st: Dict) -> None:
         cabeza, resto = lst[0], lst[1:]
         imprimir_u(cabeza)
         go(resto)
+
     go(st["usuarios"])
 
+
 # -------------------- Menús (recursivos) --------------------
+
 
 def menu_principal(st: Dict) -> None:
     _print("\n=== MENÚ PRINCIPAL ===")
@@ -485,23 +636,32 @@ def menu_principal(st: Dict) -> None:
             _print("\nRutinas disponibles:")
             listar_rutinas(st)
             r_line = _pedir_no_vacio("Rutinas (separadas por coma): ")
-            nombres_rutinas = list(filter(lambda x: x != "", map(lambda s: s.strip(), r_line.split(","))))
+            nombres_rutinas = list(
+                filter(lambda x: x != "", map(lambda s: s.strip(), r_line.split(",")))
+            )
             errores: List[str] = []
-            def asignar_fold(state_and_errs: Tuple[Dict, List[str]], nombre_r: str) -> Tuple[Dict, List[str]]:
+
+            def asignar_fold(
+                state_and_errs: Tuple[Dict, List[str]], nombre_r: str
+            ) -> Tuple[Dict, List[str]]:
                 state, errs = state_and_errs
                 try:
                     nuevo = asignar_rutina_a_usuario(state, u, nombre_r)
                     return (nuevo, errs)
                 except ValueError as e:
                     return (state, errs + [f"{nombre_r}: {e}"])
+
             st2, errores = reduce(asignar_fold, nombres_rutinas, (st, errores))
             if errores:
                 _print("Algunos errores al asignar rutinas:")
+
                 def go_msgs(xs: List[str]) -> None:
-                    if not xs: return
+                    if not xs:
+                        return
                     cabeza, resto = xs[0], xs[1:]
                     _print(f"  [Error] {cabeza}")
                     go_msgs(resto)
+
                 go_msgs(errores)
                 return menu_principal(st2)
             else:
@@ -524,14 +684,25 @@ def menu_principal(st: Dict) -> None:
         _print(f"[Error] {e}")
         return menu_principal(st)
 
+
 def _pedir_no_vacio(msg: str) -> str:
     return _input_no_vacio(msg)
 
+
 def _pedir_usuario_nombre() -> str:
     nombre = input("Usuario: ").strip()
-    return nombre if nombre else (_print("El nombre de usuario no puede estar vacío.") or _pedir_usuario_nombre())
+    return (
+        nombre
+        if nombre
+        else (
+            _print("El nombre de usuario no puede estar vacío.")
+            or _pedir_usuario_nombre()
+        )
+    )
+
 
 # ---- Submenú Usuarios ----
+
 
 def menu_usuarios(st: Dict) -> None:
     _print("\n--- Usuarios ---")
@@ -541,9 +712,11 @@ def menu_usuarios(st: Dict) -> None:
     _print("4) Volver")
     op = input("Opción: ").strip()
     if op == "1":
-        nombre = _repetir_hasta(lambda n: buscar_usuario(st, n) is None,
-                                "Nombre: ",
-                                "Ya existe un usuario con ese nombre. Intenta otro.")
+        nombre = _repetir_hasta(
+            lambda n: buscar_usuario(st, n) is None,
+            "Nombre: ",
+            "Ya existe un usuario con ese nombre. Intenta otro.",
+        )
         edad = _input_int("Edad: ", minimo=16, maximo=100)
         try:
             st2 = agregar_usuario(st, nombre, edad)
@@ -568,9 +741,15 @@ def menu_usuarios(st: Dict) -> None:
         _print("Opción no válida.")
         return menu_usuarios(st)
 
+
 def _repetir_hasta(pred_ok, prompt: str, msg_dup: str) -> str:
     val = _input_no_vacio(prompt)
-    return val if pred_ok(val) else (_print(msg_dup) or _repetir_hasta(pred_ok, prompt, msg_dup))
+    return (
+        val
+        if pred_ok(val)
+        else (_print(msg_dup) or _repetir_hasta(pred_ok, prompt, msg_dup))
+    )
+
 
 def submenu_editar_usuario(st: Dict, u: Dict) -> None:
     _print(f"\nEditando usuario: {u['nombre']}")
@@ -579,28 +758,44 @@ def submenu_editar_usuario(st: Dict, u: Dict) -> None:
     _print("3) Volver")
     subop = input("Opción: ").strip()
     if subop == "1":
-        nuevo = _repetir_hasta(lambda n: buscar_usuario(st, n) is None,
-                               "Nuevo nombre: ", "Ya existe un usuario con ese nombre.")
+        nuevo = _repetir_hasta(
+            lambda n: buscar_usuario(st, n) is None,
+            "Nuevo nombre: ",
+            "Ya existe un usuario con ese nombre.",
+        )
         old_key = _norm(u["nombre"])
         u2 = {"nombre": nuevo.strip(), "edad": u["edad"], "rutinas": u["rutinas"]}
         # actualizar índice + lista
-        nuevos_idx = dict(st["idx_usuarios"]); nuevos_idx.pop(old_key, None); nuevos_idx[_norm(u2["nombre"])] = u2
+        nuevos_idx = dict(st["idx_usuarios"])
+        nuevos_idx.pop(old_key, None)
+        nuevos_idx[_norm(u2["nombre"])] = u2
         nuevos_usuarios = list(map(lambda x: u2 if x is u else x, st["usuarios"]))
         _print("Nombre actualizado.")
-        return submenu_editar_usuario({**st, "usuarios": nuevos_usuarios, "idx_usuarios": nuevos_idx}, u2)
+        return submenu_editar_usuario(
+            {**st, "usuarios": nuevos_usuarios, "idx_usuarios": nuevos_idx}, u2
+        )
     elif subop == "2":
-        u2 = {"nombre": u["nombre"], "edad": _input_int("Nueva edad: ", minimo=16, maximo=100), "rutinas": u["rutinas"]}
-        nuevos_idx = dict(st["idx_usuarios"]); nuevos_idx[_norm(u2["nombre"])] = u2
+        u2 = {
+            "nombre": u["nombre"],
+            "edad": _input_int("Nueva edad: ", minimo=16, maximo=100),
+            "rutinas": u["rutinas"],
+        }
+        nuevos_idx = dict(st["idx_usuarios"])
+        nuevos_idx[_norm(u2["nombre"])] = u2
         nuevos_usuarios = list(map(lambda x: u2 if x is u else x, st["usuarios"]))
         _print("Edad actualizada.")
-        return submenu_editar_usuario({**st, "usuarios": nuevos_usuarios, "idx_usuarios": nuevos_idx}, u2)
+        return submenu_editar_usuario(
+            {**st, "usuarios": nuevos_usuarios, "idx_usuarios": nuevos_idx}, u2
+        )
     elif subop == "3":
         return menu_usuarios(st)
     else:
         _print("Opción no válida.")
         return submenu_editar_usuario(st, u)
 
+
 # ---- Submenú Ejercicios ----
+
 
 def menu_ejercicios(st: Dict) -> None:
     _print("\n--- Ejercicios (catálogo) ---")
@@ -611,8 +806,11 @@ def menu_ejercicios(st: Dict) -> None:
     _print("5) Volver")
     op = input("Opción: ").strip()
     if op == "1":
-        nombre = _repetir_hasta(lambda n: buscar_ejercicio(st, n) is None,
-                                "Nombre: ", "Ya existe un ejercicio con ese nombre. Intenta otro.")
+        nombre = _repetir_hasta(
+            lambda n: buscar_ejercicio(st, n) is None,
+            "Nombre: ",
+            "Ya existe un ejercicio con ese nombre. Intenta otro.",
+        )
         reps = _input_int("Repeticiones: ", minimo=1, maximo=100)
         series = _input_int("Series: ", minimo=1, maximo=100)
         try:
@@ -646,6 +844,7 @@ def menu_ejercicios(st: Dict) -> None:
         _print("Opción no válida.")
         return menu_ejercicios(st)
 
+
 def submenu_editar_ejercicio(st: Dict, ej: Dict) -> None:
     _print(f"\nEditando ejercicio: {ej['nombre']}")
     _print("1) Cambiar nombre")
@@ -654,33 +853,53 @@ def submenu_editar_ejercicio(st: Dict, ej: Dict) -> None:
     _print("4) Volver")
     subop = input("Opción: ").strip()
     if subop == "1":
-        nuevo = _repetir_hasta(lambda n: buscar_ejercicio(st, n) is None,
-                               "Nuevo nombre: ", "Ya existe un ejercicio con ese nombre.")
+        nuevo = _repetir_hasta(
+            lambda n: buscar_ejercicio(st, n) is None,
+            "Nuevo nombre: ",
+            "Ya existe un ejercicio con ese nombre.",
+        )
         old_key = _norm(ej["nombre"])
-        ej2 = dict(ej); ej2["nombre"] = nuevo.strip()
-        idx = dict(st["idx_ejercicios"]); idx.pop(old_key, None); idx[_norm(ej2["nombre"])] = ej2
+        ej2 = dict(ej)
+        ej2["nombre"] = nuevo.strip()
+        idx = dict(st["idx_ejercicios"])
+        idx.pop(old_key, None)
+        idx[_norm(ej2["nombre"])] = ej2
         catalogo = list(map(lambda x: ej2 if x is ej else x, st["ejercicios_catalogo"]))
         _print("Nombre actualizado.")
-        return submenu_editar_ejercicio({**st, "idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2)
+        return submenu_editar_ejercicio(
+            {**st, "idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2
+        )
     elif subop == "2":
-        ej2 = actualizar_ejercicio(ej, rep=_input_int("Nuevas repeticiones: ", minimo=1, maximo=100))
-        idx = dict(st["idx_ejercicios"]); idx[_norm(ej2["nombre"])] = ej2
+        ej2 = actualizar_ejercicio(
+            ej, rep=_input_int("Nuevas repeticiones: ", minimo=1, maximo=100)
+        )
+        idx = dict(st["idx_ejercicios"])
+        idx[_norm(ej2["nombre"])] = ej2
         catalogo = list(map(lambda x: ej2 if x is ej else x, st["ejercicios_catalogo"]))
         _print("Repeticiones actualizadas.")
-        return submenu_editar_ejercicio({**st, "idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2)
+        return submenu_editar_ejercicio(
+            {**st, "idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2
+        )
     elif subop == "3":
-        ej2 = actualizar_ejercicio(ej, ser=_input_int("Nuevas series: ", minimo=1, maximo=100))
-        idx = dict(st["idx_ejercicios"]); idx[_norm(ej2["nombre"])] = ej2
+        ej2 = actualizar_ejercicio(
+            ej, ser=_input_int("Nuevas series: ", minimo=1, maximo=100)
+        )
+        idx = dict(st["idx_ejercicios"])
+        idx[_norm(ej2["nombre"])] = ej2
         catalogo = list(map(lambda x: ej2 if x is ej else x, st["ejercicios_catalogo"]))
         _print("Series actualizadas.")
-        return submenu_editar_ejercicio({**st, "idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2)
+        return submenu_editar_ejercicio(
+            {**st, "idx_ejercicios": idx, "ejercicios_catalogo": catalogo}, ej2
+        )
     elif subop == "4":
         return menu_ejercicios(st)
     else:
         _print("Opción no válida.")
         return submenu_editar_ejercicio(st, ej)
 
+
 # ---- Submenú Rutinas ----
+
 
 def menu_rutinas(st: Dict) -> None:
     _print("\n--- Rutinas ---")
@@ -693,14 +912,16 @@ def menu_rutinas(st: Dict) -> None:
         if not st["ejercicios_catalogo"]:
             _print("Primero crea ejercicios en el catálogo.")
             return menu_rutinas(st)
-        nombre = _repetir_hasta(lambda n: buscar_rutina(st, n) is None,
-                                "Nombre de la rutina: ",
-                                "Ya existe una rutina con ese nombre. Intenta otro.")
+        nombre = _repetir_hasta(
+            lambda n: buscar_rutina(st, n) is None,
+            "Nombre de la rutina: ",
+            "Ya existe una rutina con ese nombre. Intenta otro.",
+        )
         desc = _input_no_vacio("Descripción: ")
         _print("\nEjercicios disponibles (separa por coma):")
         listar_ejercicios(st)
-        sel = _input_no_vacio("Nombres a incluir (separados por coma): ")
-        nombres = list(filter(lambda x: x != "", map(lambda s: s.strip(), sel.split(","))))
+        # Aquí reintentamos hasta que todos los nombres existan
+        nombres = _pedir_nombres_validos_ejercicios(st)
         try:
             st2 = crear_rutina(st, nombre, desc, nombres)
             _print("Rutina creada.")
@@ -724,6 +945,7 @@ def menu_rutinas(st: Dict) -> None:
         _print("Opción no válida.")
         return menu_rutinas(st)
 
+
 def submenu_editar_rutina(st: Dict, r: Dict) -> None:
     _print(f"\n>>> Editando: {r['nombre']}")
     _print("1) Agregar ejercicio (del catálogo)")
@@ -739,7 +961,16 @@ def submenu_editar_rutina(st: Dict, r: Dict) -> None:
             _print("Catálogo vacío. Crea ejercicios primero.")
             return submenu_editar_rutina(st, r)
         listar_ejercicios(st)
-        nombre = _input_no_vacio("Nombre del ejercicio a agregar: ")
+
+        # Reintenta hasta que el ejercicio exista
+        def _pedir_ej_valido() -> str:
+            nombre_ej = _input_no_vacio("Nombre del ejercicio a agregar: ")
+            if buscar_ejercicio(st, nombre_ej) is None:
+                _print("Ese ejercicio no existe en el catálogo.")
+                return _pedir_ej_valido()
+            return nombre_ej
+
+        nombre = _pedir_ej_valido()
         try:
             st2 = rutina_agregar_ejercicio_st(st, r["nombre"], nombre)
             _print("Ejercicio agregado a la rutina.")
@@ -795,11 +1026,14 @@ def submenu_editar_rutina(st: Dict, r: Dict) -> None:
         if not r["ejercicios"]:
             _print("(Sin ejercicios)")
         else:
+
             def go(lst: List[Dict]) -> None:
-                if not lst: return
+                if not lst:
+                    return
                 cabeza, resto = lst[0], lst[1:]
                 _print(f"  • {str_ejercicio(cabeza)}")
                 go(resto)
+
             go(r["ejercicios"])
         return submenu_editar_rutina(st, r)
     elif op == "7":
@@ -807,6 +1041,7 @@ def submenu_editar_rutina(st: Dict, r: Dict) -> None:
     else:
         _print("Opción no válida.")
         return submenu_editar_rutina(st, r)
+
 
 # -------------------- Main --------------------
 
